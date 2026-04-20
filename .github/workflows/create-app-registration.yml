@@ -85,7 +85,21 @@ jobs:
             echo "::error::Failed to resolve app id"
             exit 1
           fi
-          OBJECT_ID=$(az ad app show --id "$APP_ID" --query id -o tsv)
+          # Azure AD is eventually consistent: newly-created apps may not be
+          # readable for several seconds. Retry until visible.
+          OBJECT_ID=""
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            OBJECT_ID=$(az ad app show --id "$APP_ID" --query id -o tsv 2>/dev/null || true)
+            if [ -n "$OBJECT_ID" ]; then
+              break
+            fi
+            echo "App not yet visible (attempt $i), waiting 5s..."
+            sleep 5
+          done
+          if [ -z "$OBJECT_ID" ]; then
+            echo "::error::App $APP_ID not visible after 50s"
+            exit 1
+          fi
           echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
           echo "object_id=$OBJECT_ID" >> "$GITHUB_OUTPUT"
 
