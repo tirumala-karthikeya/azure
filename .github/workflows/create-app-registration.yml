@@ -1,0 +1,146 @@
+name: Create Azure App Registration
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "Display name for the new app registration"
+        required: true
+      secret_duration_days:
+        description: "Client secret lifetime in days (max 730)"
+        required: true
+        default: "180"
+      sign_in_audience:
+        description: "AzureADMyOrg | AzureADMultipleOrgs | AzureADandPersonalMicrosoftAccount"
+        required: true
+        default: "AzureADMyOrg"
+      redirect_uri:
+        description: "Optional web redirect URI"
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  create-app:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Validate inputs
+        env:
+          DAYS: ${{ inputs.secret_duration_days }}
+        run: |
+          if ! [[ "$DAYS" =~ ^[0-9]+$ ]] || [ "$DAYS" -lt 1 ] || [ "$DAYS" -gt 730 ]; then
+            echo "::error::secret_duration_days must be an integer between 1 and 730"
+            exit 1
+          fi
+
+      - name: Look up existing app registration
+        id: lookup
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+        run: |
+          APP_ID=$(az ad app list --display-name "$APP_NAME" --query "[0].appId" -o tsv)
+          echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
+          if [ -n "$APP_ID" ]; then
+            echo "Found existing app: $APP_ID (will reset credential only)"
+          else
+            echo "No existing app with this display name"
+          fi
+
+      - name: Create app registration
+        if: steps.lookup.outputs.app_id == ''
+        id: create
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          AUDIENCE: ${{ inputs.sign_in_audience }}
+          REDIRECT_URI: ${{ inputs.redirect_uri }}
+        run: |
+          ARGS=(--display-name "$APP_NAME" --sign-in-audience "$AUDIENCE")
+          if [ -n "$REDIRECT_URI" ]; then
+            ARGS+=(--web-redirect-uris "$REDIRECT_URI")
+          fi
+          APP_ID=$(az ad app create "${ARGS[@]}" --query appId -o tsv)
+          echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
+          echo "Created app: $APP_ID"
+
+      - name: Resolve app id
+        id: app
+        env:
+          EXISTING: ${{ steps.lookup.outputs.app_id }}
+          CREATED: ${{ steps.create.outputs.app_id }}
+        run: |
+          APP_ID="${EXISTING:-$CREATED}"
+          if [ -z "$APP_ID" ]; then
+            echo "::error::Failed to resolve app id"
+            exit 1
+          fi
+          OBJECT_ID=$(az ad app show --id "$APP_ID" --query id -o tsv)
+          echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
+          echo "object_id=$OBJECT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure service principal exists
+        env:
+          APP_ID: ${{ steps.app.outputs.app_id }}
+        run: |
+          SP_ID=$(az ad sp list --filter "appId eq '$APP_ID'" --query "[0].id" -o tsv)
+          if [ -z "$SP_ID" ]; then
+            az ad sp create --id "$APP_ID"
+          else
+            echo "Service principal already exists: $SP_ID"
+          fi
+
+      - name: Reset client credential
+        id: secret
+        env:
+          APP_ID: ${{ steps.app.outputs.app_id }}
+          DAYS: ${{ inputs.secret_duration_days }}
+        run: |
+          END_DATE=$(date -u -d "+${DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
+          PASSWORD=$(az ad app credential reset \
+            --id "$APP_ID" \
+            --end-date "$END_DATE" \
+            --query password -o tsv)
+          echo "::add-mask::$PASSWORD"
+          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+          echo "end_date=$END_DATE" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        env:
+          APP_ID: ${{ steps.app.outputs.app_id }}
+          OBJECT_ID: ${{ steps.app.outputs.object_id }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          END_DATE: ${{ steps.secret.outputs.end_date }}
+          PASSWORD: ${{ steps.secret.outputs.password }}
+        run: |
+          {
+            echo "### Azure App Registration created"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Display name | ${{ inputs.app_name }} |"
+            echo "| Client (application) ID | \`$APP_ID\` |"
+            echo "| Object ID | \`$OBJECT_ID\` |"
+            echo "| Tenant ID | \`$TENANT_ID\` |"
+            echo "| Secret expires | $END_DATE |"
+            echo ""
+            echo "<details><summary>Show client secret (visible to anyone with read access to this run)</summary>"
+            echo ""
+            echo "\`\`\`"
+            echo "$PASSWORD"
+            echo "\`\`\`"
+            echo ""
+            echo "</details>"
+            echo ""
+            echo "> **Security note:** since no Key Vault is configured, the secret is shown here. Copy it now and rotate via \`az ad app credential reset\` if it leaks. For production, wire up Key Vault."
+          } >> "$GITHUB_STEP_SUMMARY"
