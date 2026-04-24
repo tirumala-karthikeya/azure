@@ -22,6 +22,7 @@
 | 8 | Step 5 — Run the Script as Administrator | Execute and watch the output. |
 | 9 | Step 6 — Verify the Results | Confirm the service came back, folders are empty, log is saved. |
 | 10 | Step 7 — Schedule It (Optional) | Two ways to schedule: Task Scheduler GUI or `schtasks` one-liner. |
+| 10.5 | Low-Downtime Variant | Rename-then-delete pattern using two scripts. |
 | 11 | Full Script | Ready-to-copy code block. |
 | 12 | Troubleshooting | Common failure modes and fixes. |
 
@@ -420,6 +421,96 @@ schtasks /Delete /TN "MySQL Nightly Cleanup" /F
 ```
 
 > 📷 **Screenshot placeholder**: terminal output of `schtasks /Query` showing the task, plus a log entry from a scheduler-triggered run.
+
+---
+
+## 10.5 Low-Downtime Variant — Rename-Then-Delete Pattern
+
+The single-script approach in Sections 1–10 keeps the service down for the entire duration of the cleanup: stop → delete → start. On a large `work/` or `temp/` folder, the delete phase can take minutes, which means minutes of downtime.
+
+The **rename-then-delete** pattern solves this by splitting the work across two scheduled tasks:
+
+### The idea
+
+| Time | Task | Action | Duration | Service |
+|------|------|--------|----------|---------|
+| 22:00 | `rename-and-restart.bat` | Stop → **rename** `work`/`temp` to `work_<timestamp>` / `temp_<timestamp>` → create empty ones → start | **~10–15s** | Briefly down, then up |
+| 22:30 | `delete-old-renamed.bat` | Delete every `work_*` and `temp_*` folder under the parent | Can take minutes | **Up the whole time** |
+
+### Why it works
+
+- **Renaming is instant** regardless of folder size. The file system just updates an entry — no recursion, no deletion.
+- **The service starts on empty folders**, so actual downtime = stop time + start time only. For a service that auto-recreates these folders (Tomcat), this works cleanly.
+- **The slow recursive delete runs afterwards**, against the already-renamed folders. The service is running during this phase, so delete failures or slow disks don't cause any outage.
+
+### Tradeoffs
+
+| Concern | Impact |
+|---------|--------|
+| Disk usage doubles briefly | For ~30 minutes, both the fresh and the renamed folders exist. Fine unless disk is tight. |
+| Two scripts, two scheduled tasks | More surface area to monitor. |
+| Deletion failures accumulate silently | If `delete-old-renamed.bat` fails repeatedly, `work_*` folders pile up forever. Monitor `dir <parent>\work_* | find /c /v ""` > 7 as a simple alert. |
+| Service must auto-recreate the folders on start | Tomcat ✅. MySQL's `Data/` folder ❌ (it needs system tables — don't use this pattern for database data folders). |
+
+### When to use this pattern vs. the single script
+
+| Use the single script when... | Use rename-then-delete when... |
+|-------------------------------|-------------------------------|
+| Folders are small (few MB) | Folders are large (GB or thousands of files) |
+| 30s of downtime doesn't matter | Every second of downtime is visible to users/apps |
+| Service doesn't auto-recreate the folder | Service auto-recreates the folder on startup |
+
+### The two scripts
+
+Both are provided alongside the single-script cleanup:
+
+- **`scripts/rename-and-restart.bat`** — Phase 1, runs at 22:00.
+- **`scripts/delete-old-renamed.bat`** — Phase 2, runs at 22:30.
+
+Both use the same logging wrapper, admin check, and path-safety guard as the original single script.
+
+### Scheduling both tasks
+
+Run in an elevated CMD:
+
+```cmd
+schtasks /Create /TN "Service Rename Restart"   /TR "C:\scripts\rename-and-restart.bat" ^
+    /SC DAILY /ST 22:00 /RL HIGHEST /RU SYSTEM /F
+
+schtasks /Create /TN "Service Delete Old"       /TR "C:\scripts\delete-old-renamed.bat" ^
+    /SC DAILY /ST 22:30 /RL HIGHEST /RU SYSTEM /F
+```
+
+Verify both are scheduled:
+
+```cmd
+schtasks /Query /FO TABLE | findstr /i "Service"
+```
+
+### Testing both scripts locally (with dummy folders)
+
+```cmd
+REM 1. Create dummy folders with junk
+mkdir C:\mysql-test-1\sub
+mkdir C:\mysql-test-2
+echo hello > C:\mysql-test-1\a.txt
+echo world > C:\mysql-test-2\b.txt
+
+REM 2. Run phase 1
+C:\scripts\rename-and-restart.bat
+
+REM 3. Verify: C:\mysql-test-1 and C:\mysql-test-2 are fresh/empty,
+REM    and C:\mysql-test-1_<stamp> / C:\mysql-test-2_<stamp> exist
+dir C:\mysql-test-*
+
+REM 4. Run phase 2 (simulating the 22:30 task)
+C:\scripts\delete-old-renamed.bat
+
+REM 5. Verify: the renamed folders are gone
+dir C:\mysql-test-*
+```
+
+> 📷 **Screenshot placeholder**: output of `dir C:\mysql-test-*` after phase 1 (shows both fresh and renamed folders), and after phase 2 (only fresh folders remain).
 
 ---
 
