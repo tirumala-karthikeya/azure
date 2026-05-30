@@ -1,0 +1,88 @@
+# Jira Story Schema v1
+# This schema is the contract every story must satisfy before it can enter the backlog.
+# Do not relax these rules without sign-off from team leads.
+
+schema_version: 1
+
+required_fields:
+  title:
+    type: string
+    min_length: 8
+    max_length: 120
+    rule: Action-oriented, no trailing period. Format "<verb> <object> <qualifier>".
+
+  description:
+    type: string
+    min_length: 30
+    rule: Plain prose. Explain WHAT and WHY, not HOW.
+
+  business_value:
+    type: string
+    min_length: 20
+    rule: Why this matters. Tie to a user, metric, or compliance goal.
+
+  acceptance_criteria:
+    type: list[string]
+    min_items: 2
+    rule: Each item must be testable. Use Given/When/Then or Must/Should statements.
+
+  technical_notes:
+    type: string
+    nullable: true
+    rule: APIs, data sources, libraries, or implementation hints.
+
+  dependencies:
+    type: list[string]
+    nullable: true
+    rule: External systems, other tickets, credentials, or approvals required.
+
+  risks:
+    type: list[string]
+    nullable: true
+    rule: Security, performance, data, or stakeholder risks.
+
+  effort:
+    type: enum
+    values: [Small, Medium, Large, XL]
+    rule: Small = under 1 day. Medium = 1-3 days. Large = 3-5 days. XL = needs split.
+
+  priority:
+    type: enum
+    values: [P0, P1, P2, P3]
+    rule: P0 = blocker. P1 = next sprint. P2 = quarter. P3 = backlog.
+
+validation_rules:
+  - id: AC_MIN
+    when: acceptance_criteria.length < 2
+    action: reject
+    message: At least 2 acceptance criteria required.
+
+  - id: DEPS_MISSING
+    when: dependencies is null AND title contains any of [integrate, connect, sync, import, export]
+    action: flag
+    message: Integration story without listed dependencies.
+
+  - id: EFFORT_OVERFLOW
+    when: effort == XL
+    action: reject
+    message: XL stories must be split into smaller stories before grooming.
+
+  - id: EFFORT_MISMATCH
+    when: effort == Large AND acceptance_criteria.length < 4
+    action: flag
+    message: Large effort with fewer than 4 acceptance criteria looks under-specified.
+
+  - id: P0_REVIEW
+    when: priority == P0
+    action: flag
+    message: P0 requires lead review before sprint planning.
+
+  - id: RISK_REVIEW
+    when: risks is not null AND risks.length > 0
+    action: flag
+    message: Story has declared risks. Notify lead.
+
+output_format:
+  - All YAML keys in snake_case.
+  - String fields use plain text. No markdown. No emoji.
+  - List fields use YAML block style with hyphens.

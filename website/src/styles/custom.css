@@ -1,0 +1,468 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Documentation hub — navy/blue, GitHub-docs-inspired aesthetic
+   Works in both light and dark modes.
+   ───────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Brand palette */
+  --gah-navy:        #0D1B2A;
+  --gah-navy-2:      #1F3864;
+  --gah-blue:        #2E75B6;
+  --gah-blue-soft:   #5b9bd5;
+  --gah-blue-tint:   #E8F4FA;
+  --gah-blue-tint-2: #D5E8F4;
+
+  /* Light mode (Starlight defaults overridden) */
+  --sl-color-accent-low:  #E8F4FA;
+  --sl-color-accent:      var(--gah-blue);
+  --sl-color-accent-high: var(--gah-navy-2);
+
+  --sl-color-white:       #FFFFFF;
+  --sl-color-gray-1:      #F7FAFC;
+  --sl-color-gray-2:      #EDF2F7;
+  --sl-color-gray-3:      #CBD5E0;
+  --sl-color-gray-4:      #718096;
+  --sl-color-gray-5:      #4A5568;
+  --sl-color-gray-6:      #2D3748;
+  --sl-color-gray-7:      #1A202C;
+  --sl-color-black:       #0D1B2A;
+
+  --sl-color-text:        #1A202C;
+  --sl-color-text-accent: var(--gah-navy-2);
+  --sl-color-bg:          #FFFFFF;
+  --sl-color-bg-sidebar:  #F7FAFC;
+  --sl-color-bg-nav:      #FFFFFF;
+  --sl-color-bg-inline-code: var(--gah-blue-tint);
+
+  --sl-font:           'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --sl-font-mono:      'JetBrains Mono', 'Fira Code', Consolas, ui-monospace, monospace;
+
+  --sl-text-h1: 2.6rem;
+  --sl-text-h2: 1.8rem;
+  --sl-text-h3: 1.3rem;
+  --sl-text-h4: 1.1rem;
+}
+
+/* Dark mode — keep navy identity, deeper surfaces */
+:root[data-theme='dark'] {
+  --sl-color-accent-low:  #1A2A44;
+  --sl-color-accent:      var(--gah-blue-soft);
+  --sl-color-accent-high: #BFD9F0;
+
+  --sl-color-white:       #F0F4F8;
+  --sl-color-gray-1:      #DCE3EC;
+  --sl-color-gray-2:      #B8C2CF;
+  --sl-color-gray-3:      #909AA8;
+  --sl-color-gray-4:      #6B7585;
+  --sl-color-gray-5:      #4A5466;
+  --sl-color-gray-6:      #2A3242;
+  --sl-color-gray-7:      #1A2030;
+  --sl-color-black:       #0E1626;
+
+  --sl-color-text:        #DCE3EC;
+  --sl-color-text-accent: var(--gah-blue-soft);
+  --sl-color-bg:          #0D1117;
+  --sl-color-bg-sidebar:  #131B2C;
+  --sl-color-bg-nav:      #131B2C;
+  --sl-color-bg-inline-code: #1F2A3F;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Body + global rhythm
+   ───────────────────────────────────────────────────────────────────── */
+body {
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+.sl-markdown-content {
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.sl-markdown-content p {
+  margin: 0 0 1rem 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Page transitions — fade between pages instead of flashing
+   ───────────────────────────────────────────────────────────────────── */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Headings — solid navy (no gradient — gradient broke contrast)
+   ───────────────────────────────────────────────────────────────────── */
+.sl-markdown-content h1 {
+  color: var(--gah-navy-2);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 0;
+}
+.sl-markdown-content h2 {
+  color: var(--gah-navy-2);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-top: 2.75rem;
+  margin-bottom: 1.25rem;
+}
+.sl-markdown-content h3,
+.sl-markdown-content h4 {
+  color: var(--gah-blue);
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 1.25rem;
+}
+:root[data-theme='dark'] .sl-markdown-content h1,
+:root[data-theme='dark'] .sl-markdown-content h2 { color: #BFD9F0; }
+:root[data-theme='dark'] .sl-markdown-content h3,
+:root[data-theme='dark'] .sl-markdown-content h4 { color: var(--gah-blue-soft); }
+
+/* Hide horizontal rules — keep vertical breathing room instead */
+.sl-markdown-content hr {
+  border: 0;
+  background: transparent;
+  height: 0;
+  margin: 2.5rem 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Code blocks
+   ───────────────────────────────────────────────────────────────────── */
+.sl-markdown-content :not(pre) > code {
+  color: var(--gah-navy-2);
+  background: var(--gah-blue-tint);
+  border: 0;
+  border-radius: 3px;
+  padding: 0.05em 0.25em;
+  margin: 0;
+  font-size: 0.9em;
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+:root[data-theme='dark'] .sl-markdown-content :not(pre) > code {
+  color: #BFD9F0;
+  background: #1F2A3F;
+}
+.sl-markdown-content pre.astro-code,
+.sl-markdown-content .expressive-code .frame {
+  border-left: 4px solid var(--gah-blue) !important;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(13, 27, 42, 0.06);
+}
+.sl-markdown-content .expressive-code {
+  clear: both;
+  margin: 1.1rem 0 1.6rem;
+}
+.sl-markdown-content pre {
+  margin: 1.1rem 0 1.6rem;
+  overflow-x: auto;
+  line-height: 1.55;
+}
+.sl-markdown-content .expressive-code pre {
+  margin: 0;
+}
+.sl-markdown-content .expressive-code + p,
+.sl-markdown-content pre + p {
+  margin-top: 0.4rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Tables — clean, consistent rows, subtle inline code
+   ───────────────────────────────────────────────────────────────────── */
+.sl-markdown-content table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #CBD5E0;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  margin: 1.25rem 0;
+  font-size: 0.95rem;
+}
+.sl-markdown-content thead {
+  background: var(--gah-navy-2);
+}
+.sl-markdown-content thead th {
+  color: #FFFFFF;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border: 0;
+  letter-spacing: 0.01em;
+}
+.sl-markdown-content tbody td {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid #E2E8F0;
+  vertical-align: top;
+  line-height: 1.55;
+}
+.sl-markdown-content tbody tr:nth-child(even) td {
+  background: #F8FAFC;
+}
+.sl-markdown-content tbody tr:hover td {
+  background: var(--gah-blue-tint);
+}
+:root[data-theme='dark'] .sl-markdown-content table { border-color: #2C3A52; }
+:root[data-theme='dark'] .sl-markdown-content tbody td { border-top-color: #2C3A52; }
+:root[data-theme='dark'] .sl-markdown-content tbody tr:nth-child(even) td {
+  background: #1B2436;
+}
+:root[data-theme='dark'] .sl-markdown-content tbody tr:hover td {
+  background: #1F2A40;
+}
+
+/* Inline code inside table cells — strip the heavy badge look */
+.sl-markdown-content td :not(pre) > code,
+.sl-markdown-content th :not(pre) > code {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: inherit !important;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+:root[data-theme='dark'] .sl-markdown-content td :not(pre) > code,
+:root[data-theme='dark'] .sl-markdown-content th :not(pre) > code {
+  color: #9DC4E8 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Blockquotes
+   ───────────────────────────────────────────────────────────────────── */
+.sl-markdown-content blockquote {
+  border-left: 4px solid var(--gah-blue);
+  background: var(--gah-blue-tint);
+  color: var(--gah-navy-2);
+  padding: 0.6rem 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1rem 0;
+  font-style: normal;
+}
+:root[data-theme='dark'] .sl-markdown-content blockquote {
+  background: #1A2A44;
+  color: #BFD9F0;
+  border-left-color: var(--gah-blue-soft);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Site header — clean white in light mode, dark in dark mode
+   ───────────────────────────────────────────────────────────────────── */
+header.header {
+  background: var(--sl-color-bg-nav) !important;
+  border-bottom: 1px solid #E2E8F0;
+}
+:root[data-theme='dark'] header.header {
+  border-bottom-color: #2C3A52;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Sidebar — high-contrast labels in both modes
+   ───────────────────────────────────────────────────────────────────── */
+.sidebar-content,
+starlight-toc {
+  --sl-sidebar-item-padding-inline: 0.75rem;
+}
+.sidebar-content a,
+.sidebar-content summary,
+.sidebar-content .group-label,
+.sidebar-content .large {
+  color: #1F2937 !important;
+  font-weight: 500;
+}
+.sidebar-content .large {
+  font-weight: 700;
+  color: var(--gah-navy-2) !important;
+}
+.sidebar-content a:hover {
+  color: var(--gah-navy-2) !important;
+  background: rgba(46, 117, 182, 0.08);
+}
+.sidebar-content a[aria-current='page'] {
+  color: var(--gah-navy-2) !important;
+  background: var(--gah-blue-tint);
+  font-weight: 600;
+  border-left: 3px solid var(--gah-blue);
+}
+:root[data-theme='dark'] .sidebar-content a,
+:root[data-theme='dark'] .sidebar-content summary,
+:root[data-theme='dark'] .sidebar-content .group-label,
+:root[data-theme='dark'] .sidebar-content .large {
+  color: #DCE3EC !important;
+}
+:root[data-theme='dark'] .sidebar-content .large {
+  color: #BFD9F0 !important;
+}
+:root[data-theme='dark'] .sidebar-content a:hover {
+  color: #FFFFFF !important;
+  background: rgba(91, 155, 213, 0.10);
+}
+:root[data-theme='dark'] .sidebar-content a[aria-current='page'] {
+  color: #BFD9F0 !important;
+  background: #1A2A44;
+  border-left-color: var(--gah-blue-soft);
+}
+
+/* Right-rail Table of Contents — visible in both modes */
+.right-sidebar a,
+.right-sidebar h2,
+[aria-labelledby='starlight__on-this-page'] a,
+starlight-toc a,
+starlight-toc h2 {
+  color: #1F2937 !important;
+}
+.right-sidebar h2,
+starlight-toc h2 {
+  color: var(--gah-navy-2) !important;
+  font-weight: 700;
+}
+.right-sidebar a:hover,
+[aria-labelledby='starlight__on-this-page'] a:hover,
+starlight-toc a:hover {
+  color: var(--gah-blue) !important;
+}
+.right-sidebar a[aria-current='true'],
+[aria-labelledby='starlight__on-this-page'] a[aria-current='true'],
+starlight-toc a[aria-current='true'] {
+  color: var(--gah-navy-2) !important;
+  font-weight: 600;
+}
+:root[data-theme='dark'] .right-sidebar a,
+:root[data-theme='dark'] [aria-labelledby='starlight__on-this-page'] a,
+:root[data-theme='dark'] starlight-toc a {
+  color: #B8C2CF !important;
+}
+:root[data-theme='dark'] .right-sidebar h2,
+:root[data-theme='dark'] starlight-toc h2 {
+  color: #BFD9F0 !important;
+}
+:root[data-theme='dark'] .right-sidebar a:hover,
+:root[data-theme='dark'] [aria-labelledby='starlight__on-this-page'] a:hover,
+:root[data-theme='dark'] starlight-toc a:hover {
+  color: #FFFFFF !important;
+}
+:root[data-theme='dark'] .right-sidebar a[aria-current='true'],
+:root[data-theme='dark'] [aria-labelledby='starlight__on-this-page'] a[aria-current='true'],
+:root[data-theme='dark'] starlight-toc a[aria-current='true'] {
+  color: var(--gah-blue-soft) !important;
+}
+
+/* Strip Starlight's vertical hierarchy lines on nested sidebar groups */
+.sidebar-content ul ul,
+.sidebar-content details ul,
+.sidebar-content nav ul ul {
+  border-inline-start: 0 !important;
+  padding-inline-start: 0.75rem !important;
+}
+.sidebar-content ul ul li,
+.sidebar-content details ul li {
+  border-inline-start: 0 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Hero (homepage) — GitHub-docs inspired
+   ───────────────────────────────────────────────────────────────────── */
+.page > .main-frame .hero {
+  background: linear-gradient(135deg, #0D1B2A 0%, #1F3864 60%, #2E75B6 100%);
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  color: #FFFFFF;
+  margin: 1.5rem 0 2rem 0;
+  box-shadow: 0 10px 40px rgba(13, 27, 42, 0.15);
+  overflow: hidden;
+  position: relative;
+}
+.page > .main-frame .hero h1,
+.page > .main-frame .hero .hero-html h1 {
+  color: #FFFFFF !important;
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  background: none !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.page > .main-frame .hero .tagline {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.15rem;
+  max-width: 36rem;
+}
+.page > .main-frame .hero img {
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  max-width: 100%;
+  margin: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* CTA buttons in hero */
+.page > .main-frame .hero .actions .action.primary {
+  background: #FFFFFF !important;
+  color: var(--gah-navy-2) !important;
+  border-color: #FFFFFF !important;
+  font-weight: 600;
+}
+.page > .main-frame .hero .actions .action.primary:hover {
+  background: var(--gah-blue-tint) !important;
+}
+.page > .main-frame .hero .actions .action.minimal {
+  background: transparent !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+.page > .main-frame .hero .actions .action.minimal:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Cards on splash page
+   ───────────────────────────────────────────────────────────────────── */
+.card,
+.sl-link-card {
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  background: #FFFFFF;
+}
+.card:hover,
+.sl-link-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--gah-blue) !important;
+  box-shadow: 0 8px 24px rgba(13, 27, 42, 0.10);
+}
+:root[data-theme='dark'] .card,
+:root[data-theme='dark'] .sl-link-card {
+  background: #131B2C;
+  border-color: #2C3A52 !important;
+}
+:root[data-theme='dark'] .card:hover,
+:root[data-theme='dark'] .sl-link-card:hover {
+  border-color: var(--gah-blue-soft) !important;
+}
+
+/* Card titles in navy */
+.card-title { color: var(--gah-navy-2); font-weight: 700; }
+:root[data-theme='dark'] .card-title { color: #BFD9F0; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Diagrams sit nicely in light AND dark mode
+   ───────────────────────────────────────────────────────────────────── */
+.sl-markdown-content img {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(13, 27, 42, 0.08);
+  margin: 1.25rem auto;
+  display: block;
+  max-width: 100%;
+}
+:root[data-theme='dark'] .sl-markdown-content img {
+  background: #FFFFFF;
+  padding: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}

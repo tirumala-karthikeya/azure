@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph TAB[" Actions tab "]
+      direction LR
+      subgraph LEFT[" Left sidebar — list of workflows "]
+        W1[CI]:::box
+        W2[Deploy]:::box
+        W3[Nightly cleanup]:::box
+      end
+      subgraph MAIN[" Main pane — list of runs for the selected workflow "]
+        R1[push by alice — main — green check]:::ok
+        R2[push by bob — feature/x — red X]:::fail
+        R3[scheduled — running yellow dot]:::run
+      end
+    end
+
+    R2 --> DETAIL[Click a run → job graph<br/>Click a job → step list with logs<br/>Top right: Re-run all / Re-run failed jobs]:::box
+
+    classDef box fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864
+    classDef ok fill:#D5E8F4,stroke:#1F3864,stroke-width:2px,color:#1F3864
+    classDef fail fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864
+    classDef run fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864
+    style TAB fill:#FFFFFF,stroke:#7AA8D1,color:#1F3864
+    style LEFT fill:#FFFFFF,stroke:#7AA8D1,color:#1F3864
+    style MAIN fill:#FFFFFF,stroke:#7AA8D1,color:#1F3864
+    linkStyle default stroke:#1F3864,stroke-width:1.5px

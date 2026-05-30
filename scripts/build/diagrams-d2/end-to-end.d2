@@ -1,0 +1,42 @@
+# From developer push to production — full pipeline
+direction: down
+classes: {
+  primary:   { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  secondary: { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+  emphasis:  { style: { fill: "#0D1B2A"; stroke: "#0D1B2A"; stroke-width: 3; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  decision:  { shape: diamond; style: { fill: "#FFF6D6"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; bold: true } }
+}
+
+dev: "Developer pushes branch" { class: primary }
+pr:  "PR opened"               { class: primary }
+ci:  "CI in parallel:\nlint • matrix tests + cache\nCodeQL • dependency review" { class: secondary }
+gate1: "All green?" { class: decision }
+fix:   "Author fixes and repushes" { class: secondary }
+merge: "PR merged to main"     { class: primary }
+build: "Build Docker image"    { class: secondary }
+reg:   "Push to registry\nGHCR / ECR / ACR / GAR" { class: secondary }
+ddev:  "Deploy to Dev"         { class: secondary }
+dstg:  "Deploy to Staging"     { class: secondary }
+gate2: "Manual approval gate\nrequired reviewer" { class: decision }
+prod:  "Deploy to Production"  { class: emphasis }
+oidc:  "OIDC token handoff"    { class: secondary }
+cred:  "Cloud mints short-lived credentials\nIAM role • service principal • workload identity" { class: secondary }
+orch:  "Orchestrator updates\nECS • EKS • AKS • GKE • Cloud Run" { class: secondary }
+hc:    "Health check"          { class: decision }
+done:  "Deploy complete"       { class: emphasis }
+roll:  "Roll back to previous SHA" { class: secondary }
+slack: "Slack alert on failure"    { class: secondary }
+mon:   "Monitoring\nCloudWatch / App Insights / Cloud Monitoring" { class: secondary }
+
+dev -> pr -> ci -> gate1
+gate1 -> fix: no
+gate1 -> merge: yes
+merge -> build -> reg -> ddev -> dstg -> gate2 -> prod
+prod -> oidc -> cred -> orch -> hc
+hc -> done: pass
+hc -> roll: fail
+roll -> slack
+done -> mon
+
+# all edges in blue
+*: { &style.stroke: "#2E75B6" }

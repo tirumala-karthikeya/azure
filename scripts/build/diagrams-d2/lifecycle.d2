@@ -1,0 +1,22 @@
+# How a workflow runs end-to-end
+direction: right
+classes: {
+  primary:   { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  secondary: { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+  decision:  { shape: diamond; style: { fill: "#FFF6D6"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; bold: true } }
+}
+
+evt: "Event fires\npush / PR / cron" { class: primary }
+listen: "Any workflow\nlistening?" { class: decision }
+nope: "Nothing happens" { class: secondary }
+spin: "GitHub spins up\nfresh runner" { class: primary }
+clone: "Clone repo onto runner" { class: secondary }
+run: "Run steps in order" { class: secondary }
+destroy: "Destroy runner" { class: primary }
+
+evt -> listen: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+listen -> nope: "no" { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+listen -> spin: "yes" { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+spin -> clone: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+clone -> run: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+run -> destroy: { style: { stroke: "#2E75B6"; stroke-width: 2 } }

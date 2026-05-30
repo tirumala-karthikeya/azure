@@ -1,0 +1,35 @@
+{
+  "name": "freelancee",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/functions/*.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "agent": "node --env-file=.env src/agents/index.js",
+    "start": "func start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tirumala-karthikeya/azure.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tirumala-karthikeya/azure/issues"
+  },
+  "homepage": "https://github.com/tirumala-karthikeya/azure#readme",
+  "dependencies": {
+    "@azure/functions": "^4.14.0",
+    "docx": "^9.6.1",
+    "js-yaml": "^4.1.0",
+    "openai": "^4.104.0"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.12.0"
+  }
+}

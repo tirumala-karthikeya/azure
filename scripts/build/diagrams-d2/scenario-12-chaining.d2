@@ -1,0 +1,17 @@
+direction: right
+classes: {
+  primary:   { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  secondary: { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+  emphasis:  { style: { fill: "#0D1B2A"; stroke: "#0D1B2A"; stroke-width: 3; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  decision:  { shape: diamond; style: { fill: "#FFF6D6"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; bold: true } }
+}
+push: "Push to main"                            { class: primary }
+ci: "Workflow A: CI\nruns tests"                { class: secondary }
+gate: "CI succeeded?"                           { class: decision }
+deploy: "Workflow B: Deploy\nworkflow_run trigger" { class: emphasis }
+skip: "Deploy does not run"                     { class: secondary }
+
+push -> ci:       { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+ci -> gate:       { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+gate -> deploy: yes { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+gate -> skip: no  { style: { stroke: "#2E75B6"; stroke-width: 2 } }

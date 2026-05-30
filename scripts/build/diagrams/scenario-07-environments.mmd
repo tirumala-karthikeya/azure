@@ -1,0 +1,12 @@
+flowchart LR
+    P[Push to main]:::evt --> D[Deploy to Dev]:::stage
+    D --> S[Deploy to Staging]:::stage
+    S --> G{Manual<br/>approval}:::gate
+    G -->|approved| R[Deploy to Prod]:::prod
+    G -->|rejected| X[Run stops]:::finish
+
+    classDef evt fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef stage fill:#D5E8F4,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef gate fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef prod fill:#BFDBED,stroke:#1F3864,stroke-width:3px,color:#1F3864,font-weight:bold
+    classDef finish fill:#E8F4FA,stroke:#1F3864,stroke-width:1px,color:#1F3864

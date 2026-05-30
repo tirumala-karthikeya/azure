@@ -1,0 +1,10 @@
+.vercel
+.env
+.env.local
+node_modules/
+.DS_Store
+
+# Azure Functions
+local.settings.json
+bin
+obj

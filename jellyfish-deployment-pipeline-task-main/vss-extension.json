@@ -1,0 +1,59 @@
+{
+    "manifestVersion": 1,
+    "id": "jellyfish-deployment-pipeline-task",
+    "name": "Jellyfish Deployment Pipeline Task",
+    "version": "1.0.5",
+    "publisher": "nextech-systems",
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services"
+        }
+    ],
+    "description": "Publish Deployment events from Azure Pipelines or Classic Releases",
+    "public": false,
+    "categories": [
+        "Azure Pipelines"
+    ],
+    "icons": {
+        "default": "images/jellyfish-ko.png"
+    },
+    "content": {
+        "details": {
+            "path": "README.md"
+        }
+    },
+    "repository": {
+        "type": "git",
+        "uri": "https://github.com/NextechSystems/jellyfish-deployment-pipeline-task"
+    },
+    "badges": [
+        {
+            "href": "https://nextech-systems.visualstudio.com/icp-intellechartpro/_build/latest?definitionId=495&branchName=main",
+            "uri": "https://nextech-systems.visualstudio.com/icp-intellechartpro/_apis/build/status/NextechSystems.jellyfish-deployment-pipeline-task?branchName=main",
+            "description": "Pipeline"
+        }
+    ],
+    "files": [
+        {
+            "path": "buildandreleasetask"
+        },
+        {
+            "path": "images"
+        },
+        {
+            "path": "README.md"
+        }
+    ],
+    "contributions": [
+        {
+            "id": "jellyfish-deployment-pipeline-task",
+            "type": "ms.vss-distributed-task.task",
+            "targets": [
+                "ms.vss-distributed-task.tasks"
+            ],
+            "properties": {
+                "name": "buildandreleasetask"
+            }
+        }
+    ]
+}

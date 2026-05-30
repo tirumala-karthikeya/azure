@@ -1,0 +1,11 @@
+flowchart LR
+    P[Push to main]:::evt --> A[Workflow A: CI<br/>runs tests]:::wfa
+    A --> C{CI<br/>succeeded?}:::gate
+    C -->|yes| B[Workflow B: Deploy<br/>triggered by workflow_run]:::wfb
+    C -->|no| X[Deploy does not run]:::finish
+
+    classDef evt fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef wfa fill:#D5E8F4,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef wfb fill:#BFDBED,stroke:#1F3864,stroke-width:3px,color:#1F3864,font-weight:bold
+    classDef gate fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef finish fill:#E8F4FA,stroke:#1F3864,stroke-width:1px,color:#1F3864

@@ -1,0 +1,19 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "Calibri, Arial, sans-serif",
+    "fontSize": "16px",
+    "primaryColor": "#E8F4FA",
+    "primaryBorderColor": "#1F3864",
+    "primaryTextColor": "#1F3864",
+    "lineColor": "#2E75B6",
+    "secondaryColor": "#D5E8F4",
+    "tertiaryColor": "#FFFFFF"
+  },
+  "flowchart": {
+    "curve": "basis",
+    "padding": 20,
+    "nodeSpacing": 40,
+    "rankSpacing": 60
+  }
+}

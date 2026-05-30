@@ -1,0 +1,13 @@
+direction: right
+classes: {
+  primary:   { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  secondary: { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+}
+trig: "Trigger\npush / PR" { class: primary }
+be: backend-test  { class: secondary }
+fe: frontend-test { class: secondary }
+api: api-test     { class: secondary }
+
+trig -> be:  { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+trig -> fe:  { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+trig -> api: { style: { stroke: "#2E75B6"; stroke-width: 2 } }

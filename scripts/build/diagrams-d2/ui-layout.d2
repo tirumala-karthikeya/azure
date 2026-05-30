@@ -1,0 +1,34 @@
+# GitHub Actions tab — what you see
+direction: right
+classes: {
+  pane:    { style: { fill: "#FFFFFF"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; bold: true; border-radius: 8 } }
+  ok:      { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 1; font-color: "#1F3864"; border-radius: 6 } }
+  primary: { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+}
+
+actions: Actions tab {
+  shape: rectangle
+  style: { fill: "#F7FAFC"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; bold: true; border-radius: 12 }
+
+  sidebar: "Left sidebar — workflows" {
+    shape: rectangle
+    style: { fill: "#FFFFFF"; stroke: "#1F3864"; stroke-width: 1; font-color: "#1F3864"; bold: true; border-radius: 6 }
+    ci:    CI               { class: ok }
+    deploy: Deploy          { class: ok }
+    nightly: "Nightly cleanup" { class: ok }
+  }
+
+  main: "Main pane — runs for the selected workflow" {
+    shape: rectangle
+    style: { fill: "#FFFFFF"; stroke: "#1F3864"; stroke-width: 1; font-color: "#1F3864"; bold: true; border-radius: 6 }
+    r1: "push by alice — main — green check"   { class: ok }
+    r2: "push by bob — feature/x — red X"      { class: ok }
+    r3: "scheduled — running yellow dot"       { class: ok }
+  }
+}
+
+detail: "Click a run → job graph\nClick a job → step list with logs\nTop right: Re-run all / Re-run failed jobs" {
+  class: primary
+}
+
+actions.main.r2 -> detail: { style: { stroke: "#2E75B6"; stroke-width: 2 } }

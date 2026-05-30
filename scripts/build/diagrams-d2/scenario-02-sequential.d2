@@ -1,0 +1,10 @@
+direction: right
+classes: {
+  primary: { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+}
+b: Build  { class: primary }
+t: Test   { class: primary }
+d: Deploy { class: primary }
+
+b -> t: needs { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+t -> d: needs { style: { stroke: "#2E75B6"; stroke-width: 2 } }

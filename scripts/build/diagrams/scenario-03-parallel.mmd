@@ -1,0 +1,7 @@
+flowchart LR
+    T[Trigger<br/>push / PR]:::evt --> A[backend-test]:::svc
+    T --> B[frontend-test]:::svc
+    T --> C[api-test]:::svc
+
+    classDef evt fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef svc fill:#D5E8F4,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold

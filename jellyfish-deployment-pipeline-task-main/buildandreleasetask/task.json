@@ -1,0 +1,66 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+    "id": "83a9d7c5-3784-4c1b-894e-e40862b8fbb1",
+    "name": "jellyfishDeploymentTask",
+    "friendlyName": "Jellyfish Deployment Task",
+    "description": "Publish Deployment events from Azure Pipelines or Classic Releases",
+    "helpMarkDown": "",
+    "category": "Utility",
+    "author": "Brandon Boone",
+    "version": {
+        "Major": 1,
+        "Minor": 0,
+        "Patch": 6
+    },
+    "instanceNameFormat": "Jellyfish Deployment Task",
+    "inputs": [
+        {
+            "name": "jellyfishKey",
+            "type": "string",
+            "label": "Jellyfish Api Key",
+            "defaultValue": "",
+            "required": true,
+            "helpMarkDown": ""
+        },
+        {
+            "name": "adoPat",
+            "type": "string",
+            "label": "Azure DevOps PAT",
+            "defaultValue": "",
+            "required": false,
+            "helpMarkDown": "Azure DevOps Personal Access Token. Required in Classic Releases (baseline state is auto-managed and needs Release read/write scope). Also needed for Azure Pipelines with multiple source repositories or to use the build stage's start time."
+        },
+        {
+            "name": "backfillCommits",
+            "type": "boolean",
+            "label": "Backfill Commits",
+            "defaultValue": false,
+            "required": true,
+            "helpMarkDown": "Associates all commits between the last jellyfish deployment and this one. Used for Azure Pipelines/Build runs. In Classic Releases this value is ignored - baseline state is auto-detected via a release-definition variable."
+        },
+        {
+            "name": "isTesting",
+            "type": "boolean",
+            "label": "Is Dry Run",
+            "defaultValue": true,
+            "required": true,
+            "helpMarkDown": "Dry runs do not save data in jellyfish"
+        }
+    ],
+    "execution": {
+        "Node20_1": {
+            "target": "index.js"
+        },
+        "Node10": {
+            "target": "index.js"
+        }
+    },
+    "visibility": [
+        "Build",
+        "Release"
+    ],
+    "runsOn": [
+        "Agent",
+        "DeploymentGroup"
+    ]
+}

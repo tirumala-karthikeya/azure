@@ -1,0 +1,12 @@
+flowchart LR
+    E[Event fires<br/>push / PR / cron]:::evt --> F{Any workflow<br/>listening?}:::dec
+    F -->|no| X[Nothing happens]:::finish
+    F -->|yes| R[GitHub spins up<br/>fresh runner]:::stage
+    R --> C[Clone repo<br/>onto runner]:::stage
+    C --> S[Run steps<br/>in order]:::stage
+    S --> D[Destroy runner]:::finish
+
+    classDef evt fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef dec fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864
+    classDef stage fill:#D5E8F4,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef finish fill:#E8F4FA,stroke:#1F3864,stroke-width:1px,color:#1F3864

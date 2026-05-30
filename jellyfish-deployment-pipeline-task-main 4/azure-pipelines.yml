@@ -1,0 +1,190 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - README.md
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  major: 1
+  minor: 0
+  patch: 1
+  publisherId: 'nextech-systems'
+  extensionId: 'jellyfish-deployment-pipeline-task'
+  extensionName: 'Jellyfish Deployment Pipeline Task'
+
+name: $(major).$(minor).$(patch)$(Rev:.r)
+
+stages:
+  - stage: BVMain
+    displayName: Set Main Version Number
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/main')
+    jobs:
+      - job: Build_Main_Version_Number
+        variables:
+          iteration: $[counter(variables['patch'], 0)]
+        steps:
+          - checkout: none
+          - bash: |
+              echo "##vso[build.updatebuildnumber]$(major).$(minor).$(patch).$(iteration)"
+            name: SetMainBuildName
+
+  - stage: BVBranch
+    displayName: Set Branch Version Number
+    condition: ne(variables['Build.SourceBranch'], 'refs/heads/main')
+    jobs:
+      - job: Build_Branch_Version_Number
+        variables:
+          priteration: $[counter(variables['system.pullrequest.pullrequestid'], 0)]
+          briteration: $[counter(variables['build.sourcebranchname'], 0)]
+        steps:
+          - checkout: none
+          - bash: |
+              echo "##vso[build.updatebuildnumber]$(major).$(minor).$(patch)-PullRequest.$(priteration)"
+            condition: eq(variables['Build.Reason'], 'PullRequest')
+            name: SetPRBuildName
+          - bash: |
+              echo "##vso[build.updatebuildnumber]$(major).$(minor).$(patch)-$(Build.SourceBranchName).$(briteration)"
+            condition: and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+            name: SetBranchBuildName
+
+  - stage: CI
+    displayName: CI
+    dependsOn:
+      - BVMain
+      - BVBranch
+    condition: or(succeeded('BVMain'), succeeded('BVBranch'))
+    jobs:
+      - job: BuildAndTest
+        displayName: Build and Test
+        steps:
+          - task: Bash@3
+            displayName: Node Version
+            inputs:
+              targetType: "inline"
+              script: |
+                node -v
+          - task: Npm@1
+            displayName: NPM ci
+            inputs:
+              command: 'ci'
+              workingDir: '$(System.DefaultWorkingDirectory)/buildandreleasetask'
+          - task: TfxInstaller@3
+            displayName: Install tfx-cli
+            inputs:
+              version: "v0.7.x"
+
+          # --- SonarQube steps TEMPORARILY DISABLED (cert expired) ---
+          # - task: SonarQubePrepare@4
+          #   displayName: 'Prepare Analysis'
+          #   inputs:
+          #     SonarQube: 'SonarQube'
+          #     scannerMode: 'CLI'
+          #     configMode: manual
+          #     cliProjectKey: 'jellyfish-deployment-pipeline-task'
+          #     cliProjectName: 'jellyfish-deployment-pipeline-task'
+          #     extraProperties: |
+          #         sonar.javascript.lcov.reportPaths=**/lcov.info
+          #         sonar.exclusions=**/tests/**
+          # -----------------------------------------------------------
+
+          - task: Bash@3
+            displayName: Build
+            inputs:
+              targetType: "inline"
+              script: |
+                cd $(System.DefaultWorkingDirectory)/buildandreleasetask
+                npx tsc --version
+                npx tsc --sourceMap
+          - task: Npm@1
+            displayName: Unit Test
+            inputs:
+              command: 'custom'
+              workingDir: '$(System.DefaultWorkingDirectory)/buildandreleasetask' # Update to the name of the directory of your task's tests
+              customCommand: 'run testWithReport' # See the definition in the explanation section below - it may be called test
+          - task: PublishTestResults@2
+            displayName: Publish Test Results
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(System.DefaultWorkingDirectory)/buildandreleasetask/ResultsFile.xml'
+              failTaskOnFailedTests: true
+
+          # - task: SonarQubeAnalyze@4
+          #   displayName: 'Run Code Analysis'
+
+          - task: PackageAzureDevOpsExtension@3
+            displayName: Package VSIX File
+            inputs:
+              rootFolder: '$(System.DefaultWorkingDirectory)'
+              publisherId: '$(publisherId)'
+              extensionId: '$(extensionId)'
+              extensionName: '$(extensionName)'
+              extensionVersion: '$(Build.BuildNumber)'
+              updateTasksVersion: true
+              updateTasksVersionType: 'major'
+              extensionVisibility: 'private'
+              extensionPricing: 'free'
+          - task: CopyFiles@2
+            displayName: "Copy Files to: $(Build.ArtifactStagingDirectory)"
+            inputs:
+              Contents: "**/*.vsix"
+              TargetFolder: "$(Build.ArtifactStagingDirectory)"
+          - task: PublishBuildArtifacts@1
+            displayName: Publish Artifacts
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'vsix'
+              publishLocation: 'Container'
+
+  - stage: CD
+    displayName: Deploy
+    dependsOn:
+      - CI
+    condition: |
+      and
+      (
+        in(dependencies.CI.result, 'Succeeded'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      )
+    jobs:
+      - job: Marketplace
+        displayName: Marketplace Publish
+        steps:
+          - checkout: none
+          - task: TfxInstaller@3
+            displayName: Install tfx-cli
+            inputs:
+              version: "v0.7.x"
+          - task: DownloadBuildArtifacts@0
+            displayName: Download VSIX Artifact
+            inputs:
+              buildType: "current"
+              downloadType: "single"
+              artifactName: "vsix"
+              downloadPath: "$(System.DefaultWorkingDirectory)"
+          - task: PublishAzureDevOpsExtension@3
+            displayName: Publish to Marketplace
+            inputs:
+              connectTo: 'VsTeam'
+              connectedServiceName: 'Marketplace Publishing'
+              fileType: 'vsix'
+              vsixFile: 'vsix/$(publisherId).$(extensionId)-$(Build.BuildNumber).vsix'
+              publisherId: '$(publisherId)'
+              extensionId: '$(extensionId)'
+              extensionName: '$(extensionName)'
+              updateTasksVersion: false
+              extensionVisibility: 'private' # Change to public if you're publishing to the marketplace
+              extensionPricing: 'free'
+          - task: GithubRelease@0
+            displayName: 'Create GitHub Release'
+            inputs:
+              gitHubConnection: 'github.com_BrandonBoone2'
+              repositoryName: NextechSystems/jellyfish-deployment-pipeline-task
+              tagSource: manual
+              tag: '$(Build.BuildNumber)'

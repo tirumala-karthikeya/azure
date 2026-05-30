@@ -1,0 +1,19 @@
+direction: right
+classes: {
+  primary:   { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  secondary: { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+  ok:        { style: { fill: "#0D1B2A"; stroke: "#0D1B2A"; stroke-width: 3; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  decision:  { shape: diamond; style: { fill: "#FFF6D6"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; bold: true } }
+}
+save: "Save current\nversion SHA" { class: secondary }
+deploy: "Deploy new version"      { class: primary }
+hc: "Health check"                { class: decision }
+done: "Deploy done"               { class: ok }
+roll: "Roll back to previous SHA" { class: primary }
+fail: "Mark workflow failed"      { class: secondary }
+
+save -> deploy:    { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+deploy -> hc:      { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+hc -> done: pass   { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+hc -> roll: fail   { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+roll -> fail:      { style: { stroke: "#2E75B6"; stroke-width: 2 } }

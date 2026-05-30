@@ -1,0 +1,31 @@
+# Scenario 4 — Build fans out to 3 services, then converges on a final check
+direction: right
+
+vars: {
+  d2-config: {
+    theme-id: 0
+    sketch: false
+    pad: 40
+  }
+}
+
+build: Build {
+  shape: rectangle
+  style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 }
+}
+
+service-a: service-a { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+service-b: service-b { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+service-c: service-c { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+
+final: Final check {
+  shape: rectangle
+  style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 }
+}
+
+build -> service-a: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+build -> service-b: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+build -> service-c: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+service-a -> final: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+service-b -> final: { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+service-c -> final: { style: { stroke: "#2E75B6"; stroke-width: 2 } }

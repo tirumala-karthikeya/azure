@@ -1,0 +1,19 @@
+direction: right
+classes: {
+  primary:   { style: { fill: "#1F3864"; stroke: "#0D1B2A"; stroke-width: 2; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  secondary: { style: { fill: "#E8F4FA"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; border-radius: 8 } }
+  prod:      { style: { fill: "#0D1B2A"; stroke: "#0D1B2A"; stroke-width: 3; font-color: "#FFFFFF"; bold: true; border-radius: 8 } }
+  decision:  { shape: diamond; style: { fill: "#FFF6D6"; stroke: "#1F3864"; stroke-width: 2; font-color: "#1F3864"; bold: true } }
+}
+push: "Push to main"          { class: primary }
+dev: "Deploy to Dev"          { class: secondary }
+stg: "Deploy to Staging"      { class: secondary }
+gate: "Manual approval gate"  { class: decision }
+prod: "Deploy to Production"  { class: prod }
+stop: "Run stops"             { class: secondary }
+
+push -> dev:  { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+dev -> stg:   { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+stg -> gate:  { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+gate -> prod: approved { style: { stroke: "#2E75B6"; stroke-width: 2 } }
+gate -> stop: rejected { style: { stroke: "#2E75B6"; stroke-width: 2 } }

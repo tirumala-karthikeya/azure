@@ -1,0 +1,95 @@
+---
+title: Documentation
+description: Engineering handbooks, runbooks, and reference material.
+template: splash
+hero:
+  title: Documentation
+  tagline: Engineering handbooks, runbooks, and reference material.
+  actions:
+    - text: Get started
+      link: /azure-multi-agent/
+      icon: right-arrow
+      variant: primary
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+## Azure AI
+
+<CardGrid>
+  <LinkCard
+    title="Azure Multi-Agent Foundry"
+    description="End-to-end multi-agent build on Microsoft Foundry: ParentAgent router, SubDiscovery, AzureRetrieve, Devops, MicrosoftEntra. MCP tools, managed identity, AzureEndToEnd workflow, prod-write Jira escalation via Composio."
+    href="/azure-multi-agent/"
+  />
+</CardGrid>
+
+## CI / CD
+
+<CardGrid>
+  <LinkCard
+    title="GitHub Actions"
+    description="Workflows, recipes, and pipeline patterns for shipping code from commit to production."
+    href="/handbook/01-what-github-actions-actually-is/"
+  />
+  <LinkCard
+    title="Jellyfish deployments cleanup"
+    description="PR-previews, merge-deletes. Python tool plus a GitHub Actions workflow that bulk-deletes Jellyfish DevOps deployments inside a date range."
+    href="/jellyfish-cleanup/"
+  />
+</CardGrid>
+
+## Popular pages
+
+<CardGrid>
+  <LinkCard
+    title="Your first workflow"
+    description="The smallest working example, line by line."
+    href="/handbook/04-your-first-workflow-and-what-you-ll-see-after/"
+  />
+  <LinkCard
+    title="Recipes"
+    description="Ten copy-paste workflows: PR tests, tag deploys, Docker push, Slack and Teams notifications, .NET pipelines."
+    href="/handbook/11-recipes-you-ll-probably-copy/"
+  />
+  <LinkCard
+    title="Pipeline patterns"
+    description="Twelve real-world shapes: parallel, sequential, fan-out, environments with approval, auto-rollback."
+    href="/handbook/12-real-world-pipeline-patterns/"
+  />
+  <LinkCard
+    title="Permissions & contexts"
+    description="The survival kit: GITHUB_TOKEN scopes, ${'\\u0024'}{'{{'} contexts {'}}'}, and the built-in environment variables."
+    href="/handbook/10-permissions-contexts-and-the-built-in-variables-you-ll-actually-use/"
+  />
+  <LinkCard
+    title="Debugging"
+    description="Reading logs, verbose mode, dumping context, SSH into the runner, and iterating locally with act."
+    href="/handbook/14-debugging-and-running-workflows-on-your-laptop/"
+  />
+  <LinkCard
+    title="Security scanning"
+    description="CodeQL, Dependabot, dependency review, secret scanning — turn them all on."
+    href="/handbook/15-security-scanning-the-stuff-you-shouldn-t-skip/"
+  />
+</CardGrid>
+
+## Reference
+
+<CardGrid>
+  <LinkCard
+    title="End-to-end flow"
+    description="From developer push to production deploy, across GitHub and the cloud provider."
+    href="/handbook/17-from-push-to-production-the-end-to-end-flow/"
+  />
+  <LinkCard
+    title="GitHub Actions vs Azure DevOps"
+    description="Vocabulary mapping, where each wins, and which to pick."
+    href="/handbook/18-github-actions-vs-azure-devops-pipelines/"
+  />
+  <LinkCard
+    title="Abbreviations"
+    description="Every short form used in the handbook, with definitions."
+    href="/handbook/19-abbreviations-defined/"
+  />
+</CardGrid>

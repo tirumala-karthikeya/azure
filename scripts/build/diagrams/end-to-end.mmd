@@ -1,0 +1,23 @@
+flowchart TB
+    D[Developer pushes branch]:::box --> PR[PR opened]:::box
+    PR --> CI[CI runs in parallel:<br/>lint • matrix tests + cache<br/>CodeQL • dependency review]:::box
+    CI --> G{All green?}:::box
+    G -->|no| FIX[Author fixes and repushes]:::box
+    G -->|yes| MERGE[PR merged to main]:::box
+    MERGE --> BUILD[Build Docker image]:::box
+    BUILD --> REG[Push to registry<br/>GHCR / ECR / ACR / GAR]:::box
+    REG --> DEV[Deploy to Dev]:::box
+    DEV --> STG[Deploy to Staging]:::box
+    STG --> GATE[Manual approval gate<br/>required reviewer]:::box
+    GATE --> PROD[Deploy to Production]:::box
+    PROD --> OIDC[OIDC token handoff]:::box
+    OIDC --> CRED[Cloud mints short-lived credentials<br/>IAM role • service principal • workload identity]:::box
+    CRED --> ORCH[Orchestrator updates<br/>ECS • EKS • AKS • GKE • Cloud Run]:::box
+    ORCH --> HC{Health check}:::box
+    HC -->|pass| DONE[Deploy complete]:::box
+    HC -->|fail| RB[Roll back to previous SHA]:::box
+    RB --> NOTIFY[Slack alert on failure]:::box
+    DONE --> MON[Monitoring<br/>CloudWatch / App Insights / Cloud Monitoring]:::box
+
+    classDef box fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864
+    linkStyle default stroke:#1F3864,stroke-width:1.5px

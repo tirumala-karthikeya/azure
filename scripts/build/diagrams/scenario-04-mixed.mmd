@@ -1,0 +1,10 @@
+flowchart LR
+    B[Build]:::stage --> A[service-a]:::svc
+    B --> C[service-b]:::svc
+    B --> D[service-c]:::svc
+    A --> F[Final check]:::stage
+    C --> F
+    D --> F
+
+    classDef stage fill:#D5E8F4,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef svc fill:#E8F4FA,stroke:#1F3864,stroke-width:1px,color:#1F3864

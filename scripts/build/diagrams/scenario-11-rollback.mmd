@@ -1,0 +1,12 @@
+flowchart LR
+    S[Save current<br/>version SHA]:::stage --> D[Deploy new<br/>version]:::stage
+    D --> H{Health<br/>check}:::gate
+    H -->|pass| OK[Deploy done]:::ok
+    H -->|fail| R[Roll back to<br/>previous SHA]:::rollback
+    R --> F[Mark workflow<br/>failed]:::fail
+
+    classDef stage fill:#D5E8F4,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef gate fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef ok fill:#BFDBED,stroke:#1F3864,stroke-width:3px,color:#1F3864,font-weight:bold
+    classDef rollback fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
+    classDef fail fill:#E8F4FA,stroke:#1F3864,stroke-width:2px,color:#1F3864,font-weight:bold
