@@ -34,7 +34,7 @@
             "name": "isTesting",
             "type": "boolean",
             "label": "Is Dry Run",
-            "defaultValue": "",
+            "defaultValue": false,
             "required": false,
             "helpMarkDown": "Dry runs do not save data in jellyfish"
         }
