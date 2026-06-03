@@ -53,6 +53,7 @@ nock(`https://dev.azure.com`)
 
 tmr.setInput('isTesting', 'true');
 tmr.setInput('jellyfishKey', 'foo');
+tmr.setInput('adoPat', 'fake-pat-for-tests');
 tmr.setInput('backfillCommits', 'false');
 process.env["RELEASE_RELEASEID"] = "";
 process.env["RELEASE_RELEASEWEBURL"] = "";

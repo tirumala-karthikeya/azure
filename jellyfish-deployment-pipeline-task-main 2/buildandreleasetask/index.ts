@@ -6,20 +6,14 @@ const format = require('date-fns/format');
 
 async function run() {
   try {
-    let ADO_KEY = tl.getInput('adoPat', false);
-    if(ADO_KEY){
-      console.log("Using custom ADO Personal Access Token"); 
-      ADO_KEY = "Basic " + Buffer.from(`:${ADO_KEY}`).toString('base64');
-    } else {
-      // Throws 404	The resource doesn't exist, or the authenticated user doesn't have permission to see that it exists.
-      // for getAllBuildSources
-      console.log("Using 'Project Collection Build Service Accounts' token"); 
-      ADO_KEY = `Bearer ${tl.getEndpointAuthorizationParameter("SystemVssConnection", "AccessToken", false)}`;
-    }
+    const ADO_PAT = tl.getInput('adoPat', true);
+    console.log("Using Azure DevOps Personal Access Token");
+    const ADO_KEY = "Basic " + Buffer.from(`:${ADO_PAT}`).toString('base64');
 
     const JELLYFISH_KEY = tl.getInput('jellyfishKey', true);
     const JELLYFISH_Testing : boolean = tl.getInput('isTesting', true).toLowerCase().trim() == "true";
-    let JELLYFISH_BACKFILL : boolean = tl.getInput('backfillCommits', true).toLowerCase().trim() == "true";
+    // backfillCommits is not in task.json schema. Defaults to false; Classic Release path overrides via auto-baseline.
+    let JELLYFISH_BACKFILL : boolean = false;
     // Classic Releases auto-manage baseline state via this release-definition variable.
     const BASELINE_VAR_NAME : string = 'jellyfishBaselined';
 
@@ -69,9 +63,6 @@ async function run() {
       // release picks up the flipped value while the current run is unaffected.
       let needToFlipBaseline = false;
       let baselineDefinition: any = null;
-      if (!tl.getInput('adoPat', false)) {
-        throw new Error("Classic Releases require the 'adoPat' input (Azure DevOps PAT with Release read/write scope) so baseline state can be auto-managed.");
-      }
       if (!releaseDefinitionId) {
         throw new Error("Release.DefinitionId is not set; cannot auto-manage baseline.");
       }
