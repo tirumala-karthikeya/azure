@@ -76,7 +76,7 @@ describe('Pipeline Flow', function () {
         assert.equal(tr.succeeded, false, 'should have failed');
         assert.equal(tr.warningIssues.length, 0, "should have no warnings");
         assert.equal(tr.errorIssues.length, 1, "should have 1 error issue");
-        assert.equal(tr.errorIssues[0], 'Status Code (https://dev.azure.com/nextech-systems/icp-intellechartpro/_apis/build/builds/47308?api-version=6.0): 401', 'error issue output');
+        assert.equal(tr.errorIssues[0], 'Status Code (https://dev.azure.com/nextech-systems/icp-intellechartpro/_apis/build/definitions/100?api-version=6.0): 401', 'error issue output');
         done();
     });
 

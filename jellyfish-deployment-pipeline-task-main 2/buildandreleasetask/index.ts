@@ -12,7 +12,9 @@ async function run() {
 
     const JELLYFISH_KEY = tl.getInput('jellyfishKey', true);
     const JELLYFISH_Testing : boolean = tl.getInput('isTesting', true).toLowerCase().trim() == "true";
-    // backfillCommits is not in task.json schema. Defaults to false; Classic Release path overrides via auto-baseline.
+    // Backfill behavior (v2.x):
+    //   - Classic Releases: auto-managed via the 'jellyfishBaselined' release-definition variable (see below).
+    //   - YAML / Azure Pipelines: always false (operator control intentionally removed; not in task.json schema).
     let JELLYFISH_BACKFILL : boolean = false;
     // Classic Releases auto-manage baseline state via this release-definition variable.
     const BASELINE_VAR_NAME : string = 'jellyfishBaselined';
@@ -54,6 +56,9 @@ async function run() {
     // The build identifier.
     // Azure Pipelines example: 130
     let buildId = tl.getVariable('Build.BuildId');
+
+    // The ID of the build pipeline definition this build was created from.
+    const buildDefinitionId = tl.getVariable('Build.DefinitionId');
 
     if (!!releaseUri) {
       console.log("Classic Release");
@@ -148,10 +153,34 @@ async function run() {
 
     } else if (!!buildUri) {
       console.log("Azure Pipeline");
-      
+
       const stageName = tl.getVariable('System.StageName');
 
-      const build = await getBuild({ 
+      // Auto-baseline for YAML pipelines (mirrors Classic Release behavior).
+      // Only the *definition* is edited (not the current run's variable snapshot), so the next
+      // build picks up the flipped value while the current run is unaffected.
+      let needToFlipBaseline = false;
+      let baselineDefinition: any = null;
+      if (!buildDefinitionId) {
+        throw new Error("Build.DefinitionId is not set; cannot auto-manage baseline.");
+      }
+      baselineDefinition = await getBuildDefinition({
+        rootUri: collectionUri,
+        project: teamProject,
+        definitionId: buildDefinitionId,
+        apiKey: ADO_KEY
+      });
+      const currentBaseline = baselineDefinition?.variables?.[BASELINE_VAR_NAME]?.value;
+      if (currentBaseline === 'true') {
+        console.log(`Baseline: ${BASELINE_VAR_NAME} is 'true' -> using backfillCommits=true`);
+        JELLYFISH_BACKFILL = true;
+      } else {
+        console.log(`Baseline: ${BASELINE_VAR_NAME} is '${currentBaseline ?? "unset"}' -> using backfillCommits=false (first run, will flip after publish)`);
+        JELLYFISH_BACKFILL = false;
+        needToFlipBaseline = true;
+      }
+
+      const build = await getBuild({
         rootUri: collectionUri,
         project: teamProject,
         buildId,
@@ -162,7 +191,7 @@ async function run() {
 
       let sources = [];
       try {
-        const details = await getFullBuildDetails({ 
+        const details = await getFullBuildDetails({
           rootUri: collectionUri,
           project: teamProject,
           buildId,
@@ -175,9 +204,7 @@ async function run() {
         tl.debug(`parsed startTime as ${startTime} for ${stageName} stage`);
       } catch (err : any) {
         console.log(err.message);
-        console.log(`Could not retrieve full build details (404). Supply an ADO PAT to use this stage's (${stageName}) start time for the deployment time or if you're using multiple source repositories`);
-        console.log("Defaulting to Single Repository");
-        console.log("Defaulting to the build's start time for the Deployment Date");
+        console.log(`Could not retrieve full build details (404). Defaulting to Single Repository and the build's start time for the Deployment Date.`);
         sources = [
           {
             name: build.repository.id,
@@ -185,8 +212,9 @@ async function run() {
           }
         ];
       }
-        
-      sources.forEach(async ({name, version} : any) => {
+
+      let allPublishesSucceeded = true;
+      await Promise.all(sources.map(async ({name, version} : any) => {
         try {
           console.log(`Publishing commit [${name} : ${version}] to jellyfish`);
           tl.debug(`Deployment Date (before parse): ${startTime}`);
@@ -196,8 +224,8 @@ async function run() {
 
           const response = await addJellyFishCommit({
             referenceId: `${name}_${buildId}`,
-            repoName: name, 
-            commit: version, 
+            repoName: name,
+            commit: version,
             sourceUrl: getDeploymentUri(),
             deployedAt: publishDate,
             testRun: JELLYFISH_Testing,
@@ -206,9 +234,34 @@ async function run() {
           });
           console.log(response);
         } catch (err: any) {
-            tl.setResult(tl.TaskResult.Failed, err.message);
+          allPublishesSucceeded = false;
+          tl.setResult(tl.TaskResult.Failed, err.message);
         }
-      });
+      }));
+
+      if (needToFlipBaseline) {
+        if (!allPublishesSucceeded) {
+          console.log(`Skipping baseline flip because one or more publishes failed. Baseline will be retried on the next build.`);
+        } else {
+          if (!baselineDefinition.variables) {
+            baselineDefinition.variables = {};
+          }
+          if (baselineDefinition.variables[BASELINE_VAR_NAME]) {
+            baselineDefinition.variables[BASELINE_VAR_NAME].value = 'true';
+          } else {
+            baselineDefinition.variables[BASELINE_VAR_NAME] = { value: 'true', allowOverride: true };
+          }
+          console.log(`Flipping ${BASELINE_VAR_NAME} to 'true' on build definition ${baselineDefinition.id}`);
+          await updateBuildDefinition({
+            rootUri: collectionUri,
+            project: teamProject,
+            definitionId: baselineDefinition.id,
+            apiKey: ADO_KEY,
+            definition: baselineDefinition
+          });
+          console.log(`Done. Next build will use backfillCommits=true.`);
+        }
+      }
     }
     
     tl.setResult(tl.TaskResult.Succeeded, "success");
@@ -287,6 +340,33 @@ const getFullBuildDetails = async ({rootUri, project, buildId, apiKey} :{rootUri
       'User-Agent': 'curl/7.55.1', // a user agent is required for Azure Dev Ops
       'Authorization': apiKey,
   } });
+  return JSON.parse(response);
+}
+
+const getBuildDefinition = async ({rootUri, project, definitionId, apiKey} :{rootUri: string, project: string, definitionId: string, apiKey: string}) => {
+  const url = `${rootUri}${project}/_apis/build/definitions/${definitionId}?api-version=6.0`;
+  const response : any = await request({ url, headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'curl/7.55.1',
+      'Authorization': apiKey
+  } });
+  return JSON.parse(response);
+}
+
+const updateBuildDefinition = async ({rootUri, project, definitionId, apiKey, definition} :{rootUri: string, project: string, definitionId: string, apiKey: string, definition: any}) => {
+  const url = `${rootUri}${project}/_apis/build/definitions/${definitionId}?api-version=6.0`;
+  const response : any = await request({
+    url,
+    method: 'PUT',
+    postData: JSON.stringify(definition),
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'curl/7.55.1',
+      'Authorization': apiKey
+    }
+  });
   return JSON.parse(response);
 }
 

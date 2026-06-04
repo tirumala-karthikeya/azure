@@ -10,6 +10,17 @@ let tmr: tmrm.TaskMockRunner = new tmrm.TaskMockRunner(taskPath);
 const organization = "nextech-systems";
 const project = "icp-intellechartpro";
 const buildId = "47308";
+const buildDefinitionId = "100";
+
+nock(`https://dev.azure.com`)
+  .get(`/${organization}/${project}/_apis/build/definitions/${buildDefinitionId}?api-version=6.0`)
+  .reply(200, {
+    id: parseInt(buildDefinitionId, 10),
+    variables: {}
+  });
+
+// Publish to Jellyfish fails - the baseline flip MUST be skipped, so no PUT mock is provided.
+// nock will throw if PUT is unexpectedly attempted, which is the safety guarantee we want to lock in.
 
 nock(`https://dev.azure.com`)
   .get(`/${organization}/${project}/_apis/build/builds/${buildId}?api-version=6.0`)
@@ -65,6 +76,7 @@ process.env["SYSTEM_TEAMPROJECT"] = "icp-intellechartpro";
 process.env["SYSTEM_ACCESSTOKEN"] = "";
 process.env["BUILD_BUILDURI"] = "vstfs://build-release/Build/47308";
 process.env["BUILD_BUILDID"] = "47308";
+process.env["BUILD_DEFINITIONID"] = buildDefinitionId;
 process.env["SYSTEM_STAGENAME"] = "CD";
 
 tmr.run();
