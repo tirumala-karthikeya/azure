@@ -94,13 +94,42 @@ async function run() {
         apiKey: ADO_KEY
       });
 
+      // Skip-if-same-commit: build a map of {repoName -> commit} from the previous release, so we
+      // can avoid creating duplicate Jellyfish deployment records for unchanged commits.
+      const previousRelease = await getPreviousRelease({
+        rootUri: tfsUri,
+        projectId: teamProjectId,
+        definitionId: releaseDefinitionId,
+        currentReleaseId: releaseId,
+        apiKey: ADO_KEY
+      });
+      const previousCommitsByRepo: { [repo: string]: string } = {};
+      if (previousRelease) {
+        for (const artifact of (previousRelease.artifacts ?? [])) {
+          const repoName = artifact?.definitionReference?.repository?.name;
+          const commit = artifact?.definitionReference?.sourceVersion?.id;
+          if (repoName && commit) {
+            previousCommitsByRepo[repoName] = commit;
+          }
+        }
+        console.log(`Previous release: id=${previousRelease.id}, commits=${JSON.stringify(previousCommitsByRepo)}`);
+      } else {
+        console.log(`No previous release found for this pipeline - publishing all artifacts.`);
+      }
+
       let allPublishesSucceeded = true;
+      let anyPublishSucceeded = false;
       await Promise.all(release.artifacts.map(async (artifact : any, index: number) => {
         const repoName = artifact?.definitionReference?.repository?.name;
         const commit = artifact?.definitionReference?.sourceVersion?.id;
 
         if (!repoName || !commit) {
           console.log(`Skipping release artifact [${index}] - missing repository name or source version`);
+          return;
+        }
+
+        if (previousCommitsByRepo[repoName] === commit) {
+          console.log(`Skipping [${repoName} : ${commit}] - commit unchanged from previous release ${previousRelease?.id}`);
           return;
         }
 
@@ -121,6 +150,7 @@ async function run() {
             apiKey: JELLYFISH_KEY
           });
           console.log(response);
+          anyPublishSucceeded = true;
         } catch (err: any) {
             allPublishesSucceeded = false;
             tl.setResult(tl.TaskResult.Failed, err.message);
@@ -128,7 +158,9 @@ async function run() {
       }));
 
       if (needToFlipBaseline) {
-        if (!allPublishesSucceeded) {
+        if (!anyPublishSucceeded) {
+          console.log(`Skipping baseline flip - no artifacts were published this run (all skipped or none attempted). Baseline only flips on actual publish.`);
+        } else if (!allPublishesSucceeded) {
           console.log(`Skipping baseline flip because one or more publishes failed. Baseline will be retried on the next release.`);
         } else {
           if (!baselineDefinition.variables) {
@@ -213,8 +245,37 @@ async function run() {
         ];
       }
 
+      // Skip-if-same-commit: look up the previous successful build's repo + commit. Index by both
+      // id and name because sources[].name varies (name from full-details path, id from fallback).
+      const previousBuild = await getPreviousBuild({
+        rootUri: collectionUri,
+        project: teamProject,
+        definitionId: buildDefinitionId,
+        currentBuildId: buildId,
+        apiKey: ADO_KEY
+      });
+      const previousCommitsByRepo: { [key: string]: string } = {};
+      if (previousBuild) {
+        const prevCommit = previousBuild.sourceVersion;
+        const prevRepoId = previousBuild.repository?.id;
+        const prevRepoName = previousBuild.repository?.name;
+        if (prevCommit) {
+          if (prevRepoId) previousCommitsByRepo[prevRepoId] = prevCommit;
+          if (prevRepoName) previousCommitsByRepo[prevRepoName] = prevCommit;
+        }
+        console.log(`Previous build: id=${previousBuild.id}, commits=${JSON.stringify(previousCommitsByRepo)}`);
+      } else {
+        console.log(`No previous successful build found for this pipeline - publishing all sources.`);
+      }
+
       let allPublishesSucceeded = true;
+      let anyPublishSucceeded = false;
       await Promise.all(sources.map(async ({name, version} : any) => {
+        if (previousCommitsByRepo[name] === version) {
+          console.log(`Skipping [${name} : ${version}] - commit unchanged from previous build ${previousBuild?.id}`);
+          return;
+        }
+
         try {
           console.log(`Publishing commit [${name} : ${version}] to jellyfish`);
           tl.debug(`Deployment Date (before parse): ${startTime}`);
@@ -233,6 +294,7 @@ async function run() {
             apiKey: JELLYFISH_KEY
           });
           console.log(response);
+          anyPublishSucceeded = true;
         } catch (err: any) {
           allPublishesSucceeded = false;
           tl.setResult(tl.TaskResult.Failed, err.message);
@@ -240,7 +302,9 @@ async function run() {
       }));
 
       if (needToFlipBaseline) {
-        if (!allPublishesSucceeded) {
+        if (!anyPublishSucceeded) {
+          console.log(`Skipping baseline flip - no sources were published this run (all skipped or none attempted). Baseline only flips on actual publish.`);
+        } else if (!allPublishesSucceeded) {
           console.log(`Skipping baseline flip because one or more publishes failed. Baseline will be retried on the next build.`);
         } else {
           if (!baselineDefinition.variables) {
@@ -380,6 +444,48 @@ const getRelease = async ({rootUri, projectId, releaseId, apiKey} :{rootUri: str
       'Authorization': apiKey
   } });
   return JSON.parse(response);
+}
+
+// Returns the most recent prior release (by id != currentReleaseId) of the same pipeline, or null.
+// Used for skip-if-same-commit detection - we read the previous release's artifacts and compare commit SHAs.
+// Failures looking up the previous release are non-fatal: we treat them as "no previous" so admin
+// activity (e.g. deleting old releases) cannot break the current deployment.
+const getPreviousRelease = async ({rootUri, projectId, definitionId, currentReleaseId, apiKey} :{rootUri: string, projectId: string, definitionId: string, currentReleaseId: string, apiKey: string}) => {
+  const url = `${rootUri}${projectId}/_apis/release/releases?definitionId=${definitionId}&statusFilter=active&queryOrder=descending&$top=2&api-version=6.1-preview.8`;
+  const response : any = await request({ url, headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'curl/7.55.1',
+      'Authorization': apiKey
+  } });
+  const parsed = JSON.parse(response);
+  const releases = parsed?.value ?? [];
+  const previous = releases.find((r: any) => String(r.id) !== String(currentReleaseId));
+  if (!previous) {
+    return null;
+  }
+  try {
+    return await getRelease({ rootUri, projectId, releaseId: String(previous.id), apiKey });
+  } catch (err: any) {
+    console.log(`Could not fetch previous release ${previous.id} (${err?.message ?? 'unknown error'}). Proceeding without duplicate-commit check.`);
+    return null;
+  }
+}
+
+// Returns the most recent prior SUCCESSFUL build (by id != currentBuildId) of the same pipeline, or null.
+// Builds API returns sourceVersion + repository directly - no second call needed.
+const getPreviousBuild = async ({rootUri, project, definitionId, currentBuildId, apiKey} :{rootUri: string, project: string, definitionId: string, currentBuildId: string, apiKey: string}) => {
+  const url = `${rootUri}${project}/_apis/build/builds?definitions=${definitionId}&statusFilter=completed&resultFilter=succeeded&queryOrder=finishTimeDescending&$top=2&api-version=6.0`;
+  const response : any = await request({ url, headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'curl/7.55.1',
+      'Authorization': apiKey
+  } });
+  const parsed = JSON.parse(response);
+  const builds = parsed?.value ?? [];
+  const previous = builds.find((b: any) => String(b.id) !== String(currentBuildId));
+  return previous ?? null;
 }
 
 const getReleaseDefinition = async ({rootUri, projectId, definitionId, apiKey} :{rootUri: string, projectId: string, definitionId: string, apiKey: string}) => {

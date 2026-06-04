@@ -7,12 +7,24 @@ require('./common');
 let taskPath = path.join(__dirname, '..', 'index.js');
 let tmr: tmrm.TaskMockRunner = new tmrm.TaskMockRunner(taskPath);
 
+// This test verifies the skip-if-same-commit feature for Classic Releases:
+// - Previous release (13806) deployed commit SHA "65bd8a3a..." for the same repo.
+// - Current release (13807) has the same commit SHA.
+// - Expected: task succeeds WITHOUT publishing to Jellyfish (no POST to webhooks.jellyfish.co)
+//   AND WITHOUT flipping the baseline variable (no PUT to release/definitions/{id}).
+// nock will throw if either is unexpectedly attempted - that's the safety guarantee we lock in.
+
 const organization = "nextech-systems";
 const project = "icp-intellechartpro";
 const projectId = "d73144da-a092-4b3d-9155-9744b35b85cd";
 const releaseId = "13807";
+const previousReleaseId = "13806";
 const releaseDefinitionId = "42";
+const sameCommit = "65bd8a3a9e9a64b591f959f94ec8e639719a3a61";
+const sameRepo = "nextechSystems/nextech-mfa-api";
 
+// First-run scenario (baseline unset). Even though the commit matches the previous release,
+// we should NOT flip the baseline because no publish actually happens.
 nock(`https://nextech-systems.vsrm.visualstudio.com`)
   .get(`/${projectId}/_apis/release/definitions/${releaseDefinitionId}?api-version=6.0`)
   .reply(200, {
@@ -20,18 +32,35 @@ nock(`https://nextech-systems.vsrm.visualstudio.com`)
     variables: {}
   });
 
-nock(`https://nextech-systems.vsrm.visualstudio.com`)
-  .put(`/${projectId}/_apis/release/definitions/${releaseDefinitionId}?api-version=6.0`, () => true)
-  .reply(200, {
-    id: parseInt(releaseDefinitionId, 10),
-    variables: { jellyfishBaselined: { value: 'true', allowOverride: true } }
-  });
-
+// Previous release list - returns the previous release with same commit
 nock(`https://nextech-systems.vsrm.visualstudio.com`)
   .get(`/${projectId}/_apis/release/releases`)
   .query(true)
-  .reply(200, { count: 0, value: [] });
+  .reply(200, {
+    count: 2,
+    value: [
+      { id: parseInt(releaseId, 10) },
+      { id: parseInt(previousReleaseId, 10) }
+    ]
+  });
 
+// Detailed fetch for previous release - same commit as current
+nock(`https://nextech-systems.vsrm.visualstudio.com`)
+  .get(`/${projectId}/_apis/release/releases/${previousReleaseId}?api-version=6.1-preview.8`)
+  .reply(200, {
+    id: parseInt(previousReleaseId, 10),
+    createdOn: "2021-11-30T11:43:49.8887675Z",
+    artifacts: [
+      {
+        definitionReference: {
+          repository: { name: sameRepo },
+          sourceVersion: { id: sameCommit }
+        }
+      }
+    ]
+  });
+
+// Current release - same commit
 nock(`https://nextech-systems.vsrm.visualstudio.com`)
   .get(`/${projectId}/_apis/release/releases/${releaseId}?api-version=6.1-preview.8`)
   .reply(200, {
@@ -39,20 +68,15 @@ nock(`https://nextech-systems.vsrm.visualstudio.com`)
     artifacts: [
       {
         definitionReference: {
-          repository: {
-            name: "nextechSystems/nextech-mfa-api"
-          },
-          sourceVersion: {
-            id: "65bd8a3a9e9a64b591f959f94ec8e639719a3a61"
-          }
+          repository: { name: sameRepo },
+          sourceVersion: { id: sameCommit }
         }
       }
     ]
   });
 
-nock(`https://webhooks.jellyfish.co`)
-  .post(`/deployment`, (body) => true)
-  .reply(200, "Success!"); // no joke, that's what they send back.
+// NO Jellyfish POST mock - if our code unexpectedly tries to publish, nock will throw.
+// NO PUT mock for definitions - if our code unexpectedly tries to flip baseline, nock will throw.
 
 tmr.setInput('isTesting', 'true');
 tmr.setInput('jellyfishKey', 'foo');

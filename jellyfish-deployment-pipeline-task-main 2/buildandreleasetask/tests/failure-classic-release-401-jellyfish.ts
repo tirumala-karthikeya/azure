@@ -20,6 +20,11 @@ nock(`https://nextech-systems.vsrm.visualstudio.com`)
     variables: {}
   });
 
+nock(`https://nextech-systems.vsrm.visualstudio.com`)
+  .get(`/${projectId}/_apis/release/releases`)
+  .query(true)
+  .reply(200, { count: 0, value: [] });
+
 // Publish to Jellyfish fails - the baseline flip MUST be skipped, so no PUT mock is provided.
 // nock will throw if PUT is unexpectedly attempted, which is the safety guarantee we want to lock in.
 

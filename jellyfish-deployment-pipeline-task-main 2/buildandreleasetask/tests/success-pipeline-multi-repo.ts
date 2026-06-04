@@ -27,6 +27,11 @@ nock(`https://dev.azure.com`)
   });
 
 nock(`https://dev.azure.com`)
+  .get(`/${organization}/${project}/_apis/build/builds`)
+  .query(true)
+  .reply(200, { count: 0, value: [] });
+
+nock(`https://dev.azure.com`)
   .get(`/${organization}/${project}/_apis/build/builds/${buildId}?api-version=6.0`)
   .reply(200, {
     status: 'completed',

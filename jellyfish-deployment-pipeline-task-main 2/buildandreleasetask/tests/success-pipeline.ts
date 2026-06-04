@@ -20,6 +20,11 @@ nock(`https://dev.azure.com`)
   });
 
 nock(`https://dev.azure.com`)
+  .get(`/${organization}/${project}/_apis/build/builds`)
+  .query(true)
+  .reply(200, { count: 0, value: [] });
+
+nock(`https://dev.azure.com`)
   .put(`/${organization}/${project}/_apis/build/definitions/${buildDefinitionId}?api-version=6.0`, () => true)
   .reply(200, {
     id: parseInt(buildDefinitionId, 10),

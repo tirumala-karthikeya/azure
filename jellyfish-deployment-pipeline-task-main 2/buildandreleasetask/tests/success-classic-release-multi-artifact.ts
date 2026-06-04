@@ -28,6 +28,11 @@ nock(`https://nextech-systems.vsrm.visualstudio.com`)
   });
 
 nock(`https://nextech-systems.vsrm.visualstudio.com`)
+  .get(`/${projectId}/_apis/release/releases`)
+  .query(true)
+  .reply(200, { count: 0, value: [] });
+
+nock(`https://nextech-systems.vsrm.visualstudio.com`)
   .get(`/${projectId}/_apis/release/releases/${releaseId}?api-version=6.1-preview.8`)
   .reply(200, {
     createdOn: "2021-12-01T11:43:49.8887675Z",

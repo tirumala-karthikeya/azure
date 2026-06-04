@@ -148,15 +148,28 @@ describe('Classic Release', function () {
 
     it('should fail when jellyfish not authorized', function(done: Mocha.Done) {
         this.timeout(3000);
-    
+
         let tp = path.join(__dirname, 'failure-classic-release-401-jellyfish.js');
         let tr: ttm.MockTestRunner = new ttm.MockTestRunner(tp);
-    
+
         tr.run();
         assert.equal(tr.succeeded, false, 'should have failed');
         assert.equal(tr.warningIssues.length, 0, "should have no warnings");
         assert.equal(tr.errorIssues.length, 1, "should have 1 error issue");
         assert.equal(tr.errorIssues[0], 'Status Code (https://webhooks.jellyfish.co/deployment): 401', 'error issue output');
+        done();
+    });
+
+    it('should skip publishing when commit matches previous release', function(done: Mocha.Done) {
+        this.timeout(3000);
+
+        let tp = path.join(__dirname, 'success-classic-release-skip-duplicate.js');
+        let tr: ttm.MockTestRunner = new ttm.MockTestRunner(tp);
+
+        tr.run();
+        assert.equal(tr.succeeded, true, 'should have succeeded');
+        assert.equal(tr.warningIssues.length, 0, "should have no warnings");
+        assert.equal(tr.errorIssues.length, 0, "should have no errors");
         done();
     });
 });
