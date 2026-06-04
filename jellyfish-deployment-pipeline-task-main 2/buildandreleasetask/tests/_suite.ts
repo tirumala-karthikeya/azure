@@ -160,10 +160,23 @@ describe('Classic Release', function () {
         done();
     });
 
-    it('should skip publishing when commit matches previous release', function(done: Mocha.Done) {
+    it('should skip publishing when Jellyfish reports commit already deployed', function(done: Mocha.Done) {
         this.timeout(3000);
 
         let tp = path.join(__dirname, 'success-classic-release-skip-duplicate.js');
+        let tr: ttm.MockTestRunner = new ttm.MockTestRunner(tp);
+
+        tr.run();
+        assert.equal(tr.succeeded, true, 'should have succeeded');
+        assert.equal(tr.warningIssues.length, 0, "should have no warnings");
+        assert.equal(tr.errorIssues.length, 0, "should have no errors");
+        done();
+    });
+
+    it('should fail-open and publish when Jellyfish GET check returns an error', function(done: Mocha.Done) {
+        this.timeout(3000);
+
+        let tp = path.join(__dirname, 'success-classic-release-jellyfish-check-fails.js');
         let tr: ttm.MockTestRunner = new ttm.MockTestRunner(tp);
 
         tr.run();

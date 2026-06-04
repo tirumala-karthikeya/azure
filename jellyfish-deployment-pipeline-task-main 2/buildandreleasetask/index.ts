@@ -94,28 +94,31 @@ async function run() {
         apiKey: ADO_KEY
       });
 
-      // Skip-if-same-commit: build a map of {repoName -> commit} from the previous release, so we
-      // can avoid creating duplicate Jellyfish deployment records for unchanged commits.
-      const previousRelease = await getPreviousRelease({
-        rootUri: tfsUri,
-        projectId: teamProjectId,
-        definitionId: releaseDefinitionId,
-        currentReleaseId: releaseId,
-        apiKey: ADO_KEY
-      });
-      const previousCommitsByRepo: { [repo: string]: string } = {};
-      if (previousRelease) {
-        for (const artifact of (previousRelease.artifacts ?? [])) {
-          const repoName = artifact?.definitionReference?.repository?.name;
-          const commit = artifact?.definitionReference?.sourceVersion?.id;
-          if (repoName && commit) {
-            previousCommitsByRepo[repoName] = commit;
-          }
-        }
-        console.log(`Previous release: id=${previousRelease.id}, commits=${JSON.stringify(previousCommitsByRepo)}`);
-      } else {
-        console.log(`No previous release found for this pipeline - publishing all artifacts.`);
-      }
+      // Skip-if-same-commit: query Jellyfish directly to see if this repo+commit was already deployed.
+      // Fail-open: any unexpected response defaults to "not found" -> publish (see checkJellyfishDeploymentExists).
+      //
+      // === ADO-based fallback (kept as reference if Jellyfish GET doesn't work as expected) ===
+      // const previousRelease = await getPreviousRelease({
+      //   rootUri: tfsUri,
+      //   projectId: teamProjectId,
+      //   definitionId: releaseDefinitionId,
+      //   currentReleaseId: releaseId,
+      //   apiKey: ADO_KEY
+      // });
+      // const previousCommitsByRepo: { [repo: string]: string } = {};
+      // if (previousRelease) {
+      //   for (const artifact of (previousRelease.artifacts ?? [])) {
+      //     const repoName = artifact?.definitionReference?.repository?.name;
+      //     const commit = artifact?.definitionReference?.sourceVersion?.id;
+      //     if (repoName && commit) {
+      //       previousCommitsByRepo[repoName] = commit;
+      //     }
+      //   }
+      //   console.log(`Previous release: id=${previousRelease.id}, commits=${JSON.stringify(previousCommitsByRepo)}`);
+      // } else {
+      //   console.log(`No previous release found for this pipeline - publishing all artifacts.`);
+      // }
+      // === end ADO-based fallback ===
 
       let allPublishesSucceeded = true;
       let anyPublishSucceeded = false;
@@ -128,8 +131,9 @@ async function run() {
           return;
         }
 
-        if (previousCommitsByRepo[repoName] === commit) {
-          console.log(`Skipping [${repoName} : ${commit}] - commit unchanged from previous release ${previousRelease?.id}`);
+        const alreadyDeployed = await checkJellyfishDeploymentExists({ repoName, commit, apiKey: JELLYFISH_KEY });
+        if (alreadyDeployed) {
+          console.log(`Skipping [${repoName} : ${commit}] - already deployed in Jellyfish`);
           return;
         }
 
@@ -245,34 +249,38 @@ async function run() {
         ];
       }
 
-      // Skip-if-same-commit: look up the previous successful build's repo + commit. Index by both
-      // id and name because sources[].name varies (name from full-details path, id from fallback).
-      const previousBuild = await getPreviousBuild({
-        rootUri: collectionUri,
-        project: teamProject,
-        definitionId: buildDefinitionId,
-        currentBuildId: buildId,
-        apiKey: ADO_KEY
-      });
-      const previousCommitsByRepo: { [key: string]: string } = {};
-      if (previousBuild) {
-        const prevCommit = previousBuild.sourceVersion;
-        const prevRepoId = previousBuild.repository?.id;
-        const prevRepoName = previousBuild.repository?.name;
-        if (prevCommit) {
-          if (prevRepoId) previousCommitsByRepo[prevRepoId] = prevCommit;
-          if (prevRepoName) previousCommitsByRepo[prevRepoName] = prevCommit;
-        }
-        console.log(`Previous build: id=${previousBuild.id}, commits=${JSON.stringify(previousCommitsByRepo)}`);
-      } else {
-        console.log(`No previous successful build found for this pipeline - publishing all sources.`);
-      }
+      // Skip-if-same-commit: query Jellyfish directly to see if this repo+commit was already deployed.
+      // Fail-open: any unexpected response defaults to "not found" -> publish (see checkJellyfishDeploymentExists).
+      //
+      // === ADO-based fallback (kept as reference if Jellyfish GET doesn't work as expected) ===
+      // const previousBuild = await getPreviousBuild({
+      //   rootUri: collectionUri,
+      //   project: teamProject,
+      //   definitionId: buildDefinitionId,
+      //   currentBuildId: buildId,
+      //   apiKey: ADO_KEY
+      // });
+      // const previousCommitsByRepo: { [key: string]: string } = {};
+      // if (previousBuild) {
+      //   const prevCommit = previousBuild.sourceVersion;
+      //   const prevRepoId = previousBuild.repository?.id;
+      //   const prevRepoName = previousBuild.repository?.name;
+      //   if (prevCommit) {
+      //     if (prevRepoId) previousCommitsByRepo[prevRepoId] = prevCommit;
+      //     if (prevRepoName) previousCommitsByRepo[prevRepoName] = prevCommit;
+      //   }
+      //   console.log(`Previous build: id=${previousBuild.id}, commits=${JSON.stringify(previousCommitsByRepo)}`);
+      // } else {
+      //   console.log(`No previous successful build found for this pipeline - publishing all sources.`);
+      // }
+      // === end ADO-based fallback ===
 
       let allPublishesSucceeded = true;
       let anyPublishSucceeded = false;
       await Promise.all(sources.map(async ({name, version} : any) => {
-        if (previousCommitsByRepo[name] === version) {
-          console.log(`Skipping [${name} : ${version}] - commit unchanged from previous build ${previousBuild?.id}`);
+        const alreadyDeployed = await checkJellyfishDeploymentExists({ repoName: name, commit: version, apiKey: JELLYFISH_KEY });
+        if (alreadyDeployed) {
+          console.log(`Skipping [${name} : ${version}] - already deployed in Jellyfish`);
           return;
         }
 
@@ -370,7 +378,7 @@ const addJellyFishCommit = async (
   });
 
   const response : any = await request({
-      url, 
+      url,
       headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData),
@@ -382,6 +390,66 @@ const addJellyFishCommit = async (
       postData
   });
   return response;
+}
+
+// Checks whether Jellyfish already has a deployment record for the given repo+commit combination.
+// Used for skip-if-same-commit detection. Returns true if Jellyfish reports an existing deployment.
+//
+// FAIL-OPEN BY DESIGN: any unexpected response (non-200, malformed JSON, missing fields, timeout, etc.)
+// returns false -> task proceeds to publish. This avoids the catastrophic case of "nothing ever
+// publishes" if our assumptions about Jellyfish's GET API are wrong. Worst case: same behavior as
+// before (no dedup). Best case: correct duplicate detection.
+//
+// Assumed request format: GET /deployment?repo_name=...&commit_shas=...
+// Response is parsed liberally - array, wrapped array, or count-style objects are all handled.
+const checkJellyfishDeploymentExists = async ({repoName, commit, apiKey} : {repoName: string, commit: string, apiKey: string}) : Promise<boolean> => {
+  const url = `https://webhooks.jellyfish.co/deployment?repo_name=${encodeURIComponent(repoName)}&commit_shas=${encodeURIComponent(commit)}`;
+  try {
+    const response : any = await request({
+      url,
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-jf-api-token': apiKey
+      }
+    });
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(response);
+    } catch {
+      console.log(`Jellyfish check [${repoName}:${commit}]: response not JSON, defaulting to publish`);
+      return false;
+    }
+
+    if (Array.isArray(parsed)) {
+      const exists = parsed.length > 0;
+      console.log(`Jellyfish check [${repoName}:${commit}]: array length ${parsed.length} -> ${exists ? 'found (skip)' : 'not found (publish)'}`);
+      return exists;
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      const candidates = parsed.deployments ?? parsed.value ?? parsed.results ?? parsed.data;
+      if (Array.isArray(candidates)) {
+        const exists = candidates.length > 0;
+        console.log(`Jellyfish check [${repoName}:${commit}]: wrapped array length ${candidates.length} -> ${exists ? 'found (skip)' : 'not found (publish)'}`);
+        return exists;
+      }
+      if (typeof parsed.count === 'number') {
+        const exists = parsed.count > 0;
+        console.log(`Jellyfish check [${repoName}:${commit}]: count=${parsed.count} -> ${exists ? 'found (skip)' : 'not found (publish)'}`);
+        return exists;
+      }
+    }
+
+    console.log(`Jellyfish check [${repoName}:${commit}]: unrecognized response shape, defaulting to publish`);
+    return false;
+  } catch (err: any) {
+    const msg = err?.message ?? 'unknown error';
+    console.log(`Jellyfish check [${repoName}:${commit}] failed (${msg}), defaulting to publish`);
+    return false;
+  }
 }
 
 const getBuild = async ({rootUri, project, buildId, apiKey} :{rootUri: string, project: string, buildId: string, apiKey: string}) => {
@@ -446,47 +514,50 @@ const getRelease = async ({rootUri, projectId, releaseId, apiKey} :{rootUri: str
   return JSON.parse(response);
 }
 
-// Returns the most recent prior release (by id != currentReleaseId) of the same pipeline, or null.
-// Used for skip-if-same-commit detection - we read the previous release's artifacts and compare commit SHAs.
-// Failures looking up the previous release are non-fatal: we treat them as "no previous" so admin
-// activity (e.g. deleting old releases) cannot break the current deployment.
-const getPreviousRelease = async ({rootUri, projectId, definitionId, currentReleaseId, apiKey} :{rootUri: string, projectId: string, definitionId: string, currentReleaseId: string, apiKey: string}) => {
-  const url = `${rootUri}${projectId}/_apis/release/releases?definitionId=${definitionId}&statusFilter=active&queryOrder=descending&$top=2&api-version=6.1-preview.8`;
-  const response : any = await request({ url, headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'curl/7.55.1',
-      'Authorization': apiKey
-  } });
-  const parsed = JSON.parse(response);
-  const releases = parsed?.value ?? [];
-  const previous = releases.find((r: any) => String(r.id) !== String(currentReleaseId));
-  if (!previous) {
-    return null;
-  }
-  try {
-    return await getRelease({ rootUri, projectId, releaseId: String(previous.id), apiKey });
-  } catch (err: any) {
-    console.log(`Could not fetch previous release ${previous.id} (${err?.message ?? 'unknown error'}). Proceeding without duplicate-commit check.`);
-    return null;
-  }
-}
-
-// Returns the most recent prior SUCCESSFUL build (by id != currentBuildId) of the same pipeline, or null.
-// Builds API returns sourceVersion + repository directly - no second call needed.
-const getPreviousBuild = async ({rootUri, project, definitionId, currentBuildId, apiKey} :{rootUri: string, project: string, definitionId: string, currentBuildId: string, apiKey: string}) => {
-  const url = `${rootUri}${project}/_apis/build/builds?definitions=${definitionId}&statusFilter=completed&resultFilter=succeeded&queryOrder=finishTimeDescending&$top=2&api-version=6.0`;
-  const response : any = await request({ url, headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'curl/7.55.1',
-      'Authorization': apiKey
-  } });
-  const parsed = JSON.parse(response);
-  const builds = parsed?.value ?? [];
-  const previous = builds.find((b: any) => String(b.id) !== String(currentBuildId));
-  return previous ?? null;
-}
+// === ADO-based skip-detection helpers (kept as reference; superseded by checkJellyfishDeploymentExists) ===
+// These query Azure DevOps to find the previous release/build of the same pipeline and compare commit SHAs.
+// They were the original implementation before we switched to querying Jellyfish directly. Restore these
+// (and the inline call-sites in the Classic Release / YAML Build paths) if the Jellyfish GET API turns out
+// not to work as expected.
+//
+// // Returns the most recent prior release (by id != currentReleaseId) of the same pipeline, or null.
+// const getPreviousRelease = async ({rootUri, projectId, definitionId, currentReleaseId, apiKey} :{rootUri: string, projectId: string, definitionId: string, currentReleaseId: string, apiKey: string}) => {
+//   const url = `${rootUri}${projectId}/_apis/release/releases?definitionId=${definitionId}&statusFilter=active&queryOrder=descending&$top=2&api-version=6.1-preview.8`;
+//   const response : any = await request({ url, headers: {
+//       'Content-Type': 'application/json',
+//       'Accept': 'application/json',
+//       'User-Agent': 'curl/7.55.1',
+//       'Authorization': apiKey
+//   } });
+//   const parsed = JSON.parse(response);
+//   const releases = parsed?.value ?? [];
+//   const previous = releases.find((r: any) => String(r.id) !== String(currentReleaseId));
+//   if (!previous) {
+//     return null;
+//   }
+//   try {
+//     return await getRelease({ rootUri, projectId, releaseId: String(previous.id), apiKey });
+//   } catch (err: any) {
+//     console.log(`Could not fetch previous release ${previous.id} (${err?.message ?? 'unknown error'}). Proceeding without duplicate-commit check.`);
+//     return null;
+//   }
+// }
+//
+// // Returns the most recent prior SUCCESSFUL build (by id != currentBuildId) of the same pipeline, or null.
+// const getPreviousBuild = async ({rootUri, project, definitionId, currentBuildId, apiKey} :{rootUri: string, project: string, definitionId: string, currentBuildId: string, apiKey: string}) => {
+//   const url = `${rootUri}${project}/_apis/build/builds?definitions=${definitionId}&statusFilter=completed&resultFilter=succeeded&queryOrder=finishTimeDescending&$top=2&api-version=6.0`;
+//   const response : any = await request({ url, headers: {
+//       'Content-Type': 'application/json',
+//       'Accept': 'application/json',
+//       'User-Agent': 'curl/7.55.1',
+//       'Authorization': apiKey
+//   } });
+//   const parsed = JSON.parse(response);
+//   const builds = parsed?.value ?? [];
+//   const previous = builds.find((b: any) => String(b.id) !== String(currentBuildId));
+//   return previous ?? null;
+// }
+// === end ADO-based helpers ===
 
 const getReleaseDefinition = async ({rootUri, projectId, definitionId, apiKey} :{rootUri: string, projectId: string, definitionId: string, apiKey: string}) => {
   const url = `${rootUri}${projectId}/_apis/release/definitions/${definitionId}?api-version=6.0`;

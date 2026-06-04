@@ -7,22 +7,20 @@ require('./common');
 let taskPath = path.join(__dirname, '..', 'index.js');
 let tmr: tmrm.TaskMockRunner = new tmrm.TaskMockRunner(taskPath);
 
-// This test verifies the skip-if-same-commit feature using the Jellyfish GET check:
-// - Jellyfish reports the repo+commit already exists (GET returns a non-empty array).
-// - Expected: task succeeds WITHOUT publishing to Jellyfish (no POST to webhooks.jellyfish.co)
-//   AND WITHOUT flipping the baseline variable (no PUT to release/definitions/{id}).
-// nock will throw if either POST or PUT is unexpectedly attempted - that's the safety guarantee we lock in.
+// Fail-open safety test:
+// - Jellyfish GET endpoint returns 405 Method Not Allowed (simulating the case where the GET
+//   API we assumed doesn't actually exist).
+// - Expected: task does NOT crash and does NOT block publishing. The check defaults to "not found"
+//   and the existing publish flow runs as normal -> POST succeeds -> task succeeds.
+// This guarantees that if our assumptions about the Jellyfish GET API turn out wrong in production,
+// the worst case is "no skipping happens" - never "nothing publishes".
 
 const organization = "nextech-systems";
 const project = "icp-intellechartpro";
 const projectId = "d73144da-a092-4b3d-9155-9744b35b85cd";
 const releaseId = "13807";
 const releaseDefinitionId = "42";
-const sameCommit = "65bd8a3a9e9a64b591f959f94ec8e639719a3a61";
-const sameRepo = "nextechSystems/nextech-mfa-api";
 
-// First-run scenario (baseline unset). Even though Jellyfish reports the commit exists,
-// we should NOT flip the baseline because no publish actually happens.
 nock(`https://nextech-systems.vsrm.visualstudio.com`)
   .get(`/${projectId}/_apis/release/definitions/${releaseDefinitionId}?api-version=6.0`)
   .reply(200, {
@@ -30,16 +28,21 @@ nock(`https://nextech-systems.vsrm.visualstudio.com`)
     variables: {}
   });
 
-// Jellyfish GET check returns a non-empty array - commit already deployed -> skip publish.
+nock(`https://nextech-systems.vsrm.visualstudio.com`)
+  .put(`/${projectId}/_apis/release/definitions/${releaseDefinitionId}?api-version=6.0`, () => true)
+  .reply(200, {
+    id: parseInt(releaseDefinitionId, 10),
+    variables: { jellyfishBaselined: { value: 'true', allowOverride: true } }
+  });
+
+// Jellyfish GET fails - simulating GET not supported / API changed / network issue.
+// Code should fail-open and treat as "not found" -> proceed to publish.
 nock(`https://webhooks.jellyfish.co`)
   .persist()
   .get(`/deployment`)
   .query(true)
-  .reply(200, [
-    { reference_id: `${sameRepo}_13800`, commit_shas: [sameCommit] }
-  ]);
+  .reply(405, "Method Not Allowed");
 
-// Current release - same commit Jellyfish already has
 nock(`https://nextech-systems.vsrm.visualstudio.com`)
   .get(`/${projectId}/_apis/release/releases/${releaseId}?api-version=6.1-preview.8`)
   .reply(200, {
@@ -47,15 +50,17 @@ nock(`https://nextech-systems.vsrm.visualstudio.com`)
     artifacts: [
       {
         definitionReference: {
-          repository: { name: sameRepo },
-          sourceVersion: { id: sameCommit }
+          repository: { name: "nextechSystems/nextech-mfa-api" },
+          sourceVersion: { id: "65bd8a3a9e9a64b591f959f94ec8e639719a3a61" }
         }
       }
     ]
   });
 
-// NO Jellyfish POST mock - if our code unexpectedly tries to publish, nock will throw.
-// NO PUT mock for definitions - if our code unexpectedly tries to flip baseline, nock will throw.
+// POST should be attempted (fail-open published anyway) and succeed.
+nock(`https://webhooks.jellyfish.co`)
+  .post(`/deployment`, () => true)
+  .reply(200, "Success!");
 
 tmr.setInput('isTesting', 'true');
 tmr.setInput('jellyfishKey', 'foo');
